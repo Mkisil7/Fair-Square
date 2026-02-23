@@ -34,7 +34,10 @@ import {
   Settings,
   Settings2,
   Palmtree,
-  UserCircle
+  UserCircle,
+  ChevronDown,
+  ChevronUp,
+  Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -46,6 +49,7 @@ type Trip = {
   members: string[]; // Array of user IDs or emails
   memberNames: Record<string, string>; // Map of userId to name
   notes?: string;
+  dateRange?: string;
   createdAt: any;
 };
 
@@ -481,6 +485,23 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
 }
 
 function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
+  const [dateRangeValue, setDateRangeValue] = useState(trip.dateRange || '');
+  const [isSavingDates, setIsSavingDates] = useState(false);
+
+  const handleSaveDates = async () => {
+    setIsSavingDates(true);
+    try {
+      await updateDoc(doc(db, 'trips', trip.id), {
+        dateRange: dateRangeValue.trim()
+      });
+    } catch (err) {
+      console.error("Failed to save date range", err);
+      alert("Failed to update trip dates.");
+    } finally {
+      setIsSavingDates(false);
+    }
+  };
+
   const handleLeaveGroup = async () => {
     if (trip.createdBy === user.uid) {
       alert("As the creator, you cannot leave the trip. You must delete it instead.");
@@ -507,6 +528,30 @@ function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
     <div className="p-6">
       <h3 className="font-bold text-gray-900 dark:text-white mb-6 text-xl">Trip Settings</h3>
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-50 dark:border-gray-800">
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Trip Dates</label>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="e.g. Dec 21 - Jan 5"
+                className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={dateRangeValue}
+                onChange={(e) => setDateRangeValue(e.target.value)}
+              />
+            </div>
+            {dateRangeValue !== (trip.dateRange || '') && (
+              <button
+                onClick={handleSaveDates}
+                disabled={isSavingDates}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {isSavingDates ? 'Saving...' : 'Save'}
+              </button>
+            )}
+          </div>
+        </div>
         <div className="p-4 border-b border-gray-50 dark:border-gray-800">
           <button onClick={handleShare} className="w-full flex justify-between items-center group">
             <div className="flex items-center gap-3">
@@ -547,6 +592,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   const [editNameValue, setEditNameValue] = useState(trip.name);
   const [notesValue, setNotesValue] = useState(trip.notes || '');
   const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
   // Sync internal tab if parent tab changes
   useEffect(() => {
@@ -731,14 +777,21 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flew-wrap overflow-x-auto no-scrollbar pb-2 -mb-2">
           {/* Members Pill Badge */}
-          <div className="flex items-center gap-1.5 bg-gray-100/50 dark:bg-zinc-800/50 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 cursor-pointer hover:bg-gray-200/50 dark:hover:bg-zinc-700/50 transition-colors" onClick={() => setActiveTab('friends')}>
+          <div className="flex items-center gap-1.5 bg-gray-100/50 dark:bg-zinc-800/50 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 cursor-pointer hover:bg-gray-200/50 dark:hover:bg-zinc-700/50 transition-colors whitespace-nowrap" onClick={() => setActiveTab('friends')}>
             <Users className="w-3.5 h-3.5" />
             <span>{trip.members.length} member{trip.members.length !== 1 ? 's' : ''}</span>
           </div>
+          {/* Date Range Pill */}
+          {trip.dateRange && (
+            <div className="flex items-center gap-1.5 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-indigo-100/50 dark:border-indigo-800/50 whitespace-nowrap">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{trip.dateRange}</span>
+            </div>
+          )}
           {/* Active Status Pill */}
-          <div className="flex items-center gap-1.5 bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-emerald-100/50 dark:border-emerald-800/50">
+          <div className="flex items-center gap-1.5 bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-emerald-100/50 dark:border-emerald-800/50 whitespace-nowrap">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
             <span>Active</span>
           </div>
@@ -765,34 +818,60 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
             </div>
 
             {/* Add Group Notes */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 transition-colors">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Group Notes</h3>
-                {!isEditingNotes && (
-                  <button onClick={() => setIsEditingNotes(true)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-              {isEditingNotes ? (
-                <div className="flex flex-col gap-2">
-                  <textarea
-                    autoFocus
-                    className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
-                    rows={3}
-                    placeholder="Add an address, itinerary link, or general notes..."
-                    value={notesValue}
-                    onChange={(e) => setNotesValue(e.target.value)}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => { setNotesValue(trip.notes || ''); setIsEditingNotes(false); }} className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5">Cancel</button>
-                    <button onClick={saveUpdatedNotes} className="text-xs font-bold bg-indigo-600 text-white px-4 py-1.5 rounded-full hover:bg-indigo-700 transition-colors">Save</button>
-                  </div>
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-colors">
+              <button
+                onClick={() => setIsNotesExpanded(!isNotesExpanded)}
+                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">Group Notes</h3>
+                  {trip.notes && !isNotesExpanded && (
+                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                  )}
                 </div>
-              ) : (
-                <p className={`text-sm ${trip.notes ? 'text-gray-700 dark:text-gray-300 whitespace-pre-wrap' : 'text-gray-400 italic'}`}>
-                  {trip.notes || 'Add an address, itinerary link, or general notes...'}
-                </p>
+                <div className="flex items-center gap-2">
+                  {!isNotesExpanded && !isEditingNotes && (
+                    <div onClick={(e) => { e.stopPropagation(); setIsNotesExpanded(true); setIsEditingNotes(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors cursor-pointer">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                  {isNotesExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </div>
+              </button>
+
+              {isNotesExpanded && (
+                <div className="p-4 pt-0 border-t border-gray-50 dark:border-gray-800/50">
+                  {isEditingNotes ? (
+                    <div className="flex flex-col gap-2 mt-4">
+                      <textarea
+                        autoFocus
+                        className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
+                        rows={3}
+                        placeholder="Add an address, itinerary link, or general notes..."
+                        value={notesValue}
+                        onChange={(e) => setNotesValue(e.target.value)}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => { setNotesValue(trip.notes || ''); setIsEditingNotes(false); }} className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5">Cancel</button>
+                        <button onClick={saveUpdatedNotes} className="text-xs font-bold bg-indigo-600 text-white px-4 py-1.5 rounded-full hover:bg-indigo-700 transition-colors">Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 group relative">
+                      <p className={`text-sm ${trip.notes ? 'text-gray-700 dark:text-gray-300 whitespace-pre-wrap' : 'text-gray-400 italic'}`}>
+                        {trip.notes || 'Add an address, itinerary link, or general notes...'}
+                      </p>
+                      {trip.notes && (
+                        <button
+                          onClick={() => setIsEditingNotes(true)}
+                          className="absolute top-0 right-0 p-1.5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm text-gray-400 hover:text-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
