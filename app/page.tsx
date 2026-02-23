@@ -3,29 +3,30 @@
 import { useState, useEffect } from 'react';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  serverTimestamp, 
-  doc, 
-  getDoc, 
-  updateDoc, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+  updateDoc,
   arrayUnion,
   orderBy
 } from 'firebase/firestore';
-import { 
-  Wallet, 
-  Users, 
-  PlusCircle, 
-  LogOut, 
-  Share2, 
-  ChevronLeft, 
-  Plus, 
+import {
+  Wallet,
+  Users,
+  PlusCircle,
+  LogOut,
+  Share2,
+  ChevronLeft,
+  Plus,
   Receipt,
-  UserPlus
+  UserPlus,
+  Pencil
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -47,6 +48,7 @@ type Expense = {
   description: string;
   timestamp: any;
   splits: Record<string, number>; // Map of userId to amount they owe
+  createdBy?: string;
 };
 
 // --- Main App Component ---
@@ -75,22 +77,22 @@ export default function App() {
   return (
     <div className="flex flex-col h-full w-full bg-gray-50">
       {currentView === 'home' ? (
-        <HomeScreen 
-          user={user} 
+        <HomeScreen
+          user={user}
           onSelectTrip={(trip) => {
             setSelectedTrip(trip);
             setCurrentView('trip');
-          }} 
+          }}
         />
       ) : (
         selectedTrip && (
-          <TripScreen 
-            user={user} 
-            trip={selectedTrip} 
+          <TripScreen
+            user={user}
+            trip={selectedTrip}
             onBack={() => {
               setSelectedTrip(null);
               setCurrentView('home');
-            }} 
+            }}
           />
         )
       )}
@@ -116,8 +118,8 @@ function LoginScreen() {
       </div>
       <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Fair & Square</h1>
       <p className="text-gray-500 mb-12 text-center text-lg">Split trip expenses with friends, seamlessly.</p>
-      
-      <button 
+
+      <button
         onClick={handleLogin}
         className="w-full max-w-sm bg-gray-900 text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-3 shadow-md"
       >
@@ -146,7 +148,7 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
       collection(db, 'trips'),
       where('members', 'array-contains', user.uid)
     );
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const tripsData: Trip[] = [];
       snapshot.forEach((doc) => {
@@ -185,7 +187,7 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
     try {
       const tripRef = doc(db, 'trips', joinTripId.trim());
       const tripSnap = await getDoc(tripRef);
-      
+
       if (tripSnap.exists()) {
         await updateDoc(tripRef, {
           members: arrayUnion(user.uid),
@@ -226,7 +228,7 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
         ) : (
           <div className="space-y-4">
             {trips.map((trip) => (
-              <button 
+              <button
                 key={trip.id}
                 onClick={() => onSelectTrip(trip)}
                 className="w-full bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-left hover:shadow-md transition-shadow flex items-center justify-between group"
@@ -247,13 +249,13 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
       </div>
 
       <div className="p-6 bg-white border-t border-gray-100 flex gap-3">
-        <button 
+        <button
           onClick={() => setShowJoin(true)}
           className="flex-1 bg-gray-100 text-gray-900 py-4 rounded-xl font-medium flex items-center justify-center gap-2"
         >
           <UserPlus className="w-5 h-5" /> Join
         </button>
-        <button 
+        <button
           onClick={() => setShowCreate(true)}
           className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 shadow-md shadow-indigo-200"
         >
@@ -266,9 +268,9 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
         <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
             <h2 className="text-xl font-bold mb-4">Create New Trip</h2>
-            <input 
-              type="text" 
-              placeholder="Trip Name (e.g. Bali 2024)" 
+            <input
+              type="text"
+              placeholder="Trip Name (e.g. Bali 2024)"
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={newTripName}
               onChange={(e) => setNewTripName(e.target.value)}
@@ -286,9 +288,9 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
         <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
             <h2 className="text-xl font-bold mb-4">Join a Trip</h2>
-            <input 
-              type="text" 
-              placeholder="Paste Trip ID here" 
+            <input
+              type="text"
+              placeholder="Paste Trip ID here"
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
               value={joinTripId}
               onChange={(e) => setJoinTripId(e.target.value)}
@@ -307,8 +309,9 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
 
 // --- Trip Screen ---
 function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'friends'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'edit' | 'friends'>('dashboard');
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   // Listen to expenses for this trip
   useEffect(() => {
@@ -316,7 +319,7 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
       collection(db, 'trips', trip.id, 'expenses'),
       orderBy('timestamp', 'desc')
     );
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const exps: Expense[] = [];
       snapshot.forEach((doc) => {
@@ -353,7 +356,7 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
       text: `Join my trip "${trip.name}" on Fair & Square! Use this Trip ID: ${trip.id}`,
       url: window.location.origin,
     };
-    
+
     if (navigator.share) {
       try {
         await navigator.share(shareData);
@@ -421,6 +424,19 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
                           <p className="text-xs text-rose-500 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
                         )}
                       </div>
+                      {(exp.createdBy === user.uid || (!exp.createdBy && exp.payer === user.uid)) && (
+                        <div className="pl-4 ml-4 border-l border-gray-100 flex items-center">
+                          <button
+                            onClick={() => {
+                              setEditingExpense(exp);
+                              setActiveTab('edit');
+                            }}
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                          >
+                            <Pencil className="w-5 h-5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -430,7 +446,23 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
         )}
 
         {activeTab === 'add' && (
-          <AddExpenseTab trip={trip} user={user} onAdded={() => setActiveTab('dashboard')} />
+          <ExpenseFormTab
+            trip={trip}
+            user={user}
+            onAdded={() => setActiveTab('dashboard')}
+          />
+        )}
+
+        {activeTab === 'edit' && editingExpense && (
+          <ExpenseFormTab
+            trip={trip}
+            user={user}
+            initialExpense={editingExpense}
+            onAdded={() => {
+              setEditingExpense(null);
+              setActiveTab('dashboard');
+            }}
+          />
         )}
 
         {activeTab === 'friends' && (
@@ -441,7 +473,7 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
                 <Plus className="w-4 h-4" /> Invite
               </button>
             </div>
-            
+
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {trip.members.map((memberId, idx) => (
                 <div key={memberId} className={`p-4 flex items-center justify-between ${idx !== trip.members.length - 1 ? 'border-b border-gray-50' : ''}`}>
@@ -461,7 +493,7 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
                 </div>
               ))}
             </div>
-            
+
             <div className="mt-8 bg-gray-100 p-4 rounded-xl">
               <p className="text-xs text-gray-500 text-center uppercase tracking-wider font-semibold mb-2">Trip ID</p>
               <div className="flex items-center justify-center gap-2">
@@ -475,24 +507,27 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
 
       {/* Bottom Navigation */}
       <nav className="bg-white border-t border-gray-100 px-6 py-4 flex justify-between items-center absolute bottom-0 w-full pb-6">
-        <button 
+        <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'dashboard' ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
         >
           <Wallet className="w-6 h-6" />
           <span className="text-[10px] font-medium uppercase tracking-wider">Dashboard</span>
         </button>
-        
-        <button 
-          onClick={() => setActiveTab('add')}
+
+        <button
+          onClick={() => {
+            setEditingExpense(null);
+            setActiveTab('add');
+          }}
           className="flex-1 flex justify-center -mt-8"
         >
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform ${activeTab === 'add' ? 'bg-indigo-700 scale-110' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform ${activeTab === 'add' || activeTab === 'edit' ? 'bg-indigo-700 scale-110' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
             <PlusCircle className="w-8 h-8 text-white" />
           </div>
         </button>
 
-        <button 
+        <button
           onClick={() => setActiveTab('friends')}
           className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'friends' ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
         >
@@ -504,25 +539,40 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
   );
 }
 
-// --- Add Expense Tab ---
-function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdded: () => void }) {
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('general');
-  const [payer, setPayer] = useState(user.uid);
-  const [involvedMembers, setInvolvedMembers] = useState<string[]>(trip.members);
-  const [splitType, setSplitType] = useState<'equal' | 'exact' | 'percent'>('equal');
-  
-  // Custom splits state
-  const [exactSplits, setExactSplits] = useState<Record<string, string>>({});
+// --- Expense Form Tab (Add or Edit) ---
+function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, user: User, initialExpense?: Expense, onAdded: () => void }) {
+  const [amount, setAmount] = useState(initialExpense ? initialExpense.amount.toString() : '');
+  const [description, setDescription] = useState(initialExpense ? initialExpense.description : '');
+  const [category, setCategory] = useState(initialExpense ? initialExpense.category : 'general');
+  const [payer, setPayer] = useState(initialExpense ? initialExpense.payer : user.uid);
+
+  // Custom splits setup based on initial data
+  const initialInvolved = initialExpense
+    ? Object.keys(initialExpense.splits)
+    : trip.members;
+
+  // If editing, try to infer the split type (simplified logic: if they are equal, it's 'equal', etc. 
+  // However, for simplicity without getting deep into reverse-math, we will default to 'exact' if there's an initial expense and it isn't clearly perfectly equal. You could improve this inference).
+  let initialSplitType: 'equal' | 'exact' | 'percent' = 'equal';
+  const initExact: Record<string, string> = {};
+  if (initialExpense) {
+    initialSplitType = 'exact'; // Safest assumption when editing
+    for (const [uid, amt] of Object.entries(initialExpense.splits)) {
+      initExact[uid] = amt.toString();
+    }
+  }
+
+  const [involvedMembers, setInvolvedMembers] = useState<string[]>(initialInvolved);
+  const [splitType, setSplitType] = useState<'equal' | 'exact' | 'percent'>(initialSplitType);
+  const [exactSplits, setExactSplits] = useState<Record<string, string>>(initExact);
   const [percentSplits, setPercentSplits] = useState<Record<string, string>>({});
 
   const isSubmitting = false;
 
   const toggleMemberInvolvement = (memberId: string) => {
-    setInvolvedMembers(prev => 
-      prev.includes(memberId) 
-        ? prev.filter(m => m !== memberId) 
+    setInvolvedMembers(prev =>
+      prev.includes(memberId)
+        ? prev.filter(m => m !== memberId)
         : [...prev, memberId]
     );
   };
@@ -543,7 +593,7 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
     }
 
     const splits: Record<string, number> = {};
-    
+
     if (splitType === 'equal') {
       const splitAmount = numAmount / involvedMembers.length;
       involvedMembers.forEach(m => splits[m] = splitAmount);
@@ -572,25 +622,32 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
     }
 
     try {
-      await addDoc(collection(db, 'trips', trip.id, 'expenses'), {
+      const payload = {
         amount: numAmount,
         description,
         category,
         payer,
         splits,
-        timestamp: serverTimestamp()
-      });
+        timestamp: initialExpense ? initialExpense.timestamp : serverTimestamp(),
+        createdBy: initialExpense ? initialExpense.createdBy : user.uid
+      };
+
+      if (initialExpense) {
+        await updateDoc(doc(db, 'trips', trip.id, 'expenses', initialExpense.id), payload);
+      } else {
+        await addDoc(collection(db, 'trips', trip.id, 'expenses'), payload);
+      }
       onAdded();
     } catch (error) {
-      console.error('Error adding expense', error);
-      alert('Failed to add expense');
+      console.error('Error saving expense', error);
+      alert('Failed to save expense');
     }
   };
 
   return (
     <div className="p-6 animate-in fade-in slide-in-from-bottom-4">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Add Expense</h2>
-      
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
+
       <div className="space-y-5">
         {/* Amount */}
         <div className="relative">
@@ -626,11 +683,10 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${
-                category === cat.id 
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${category === cat.id
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                   : 'bg-white border-gray-200 text-gray-600'
-              }`}
+                }`}
             >
               <span>{cat.icon}</span> {cat.label}
             </button>
@@ -640,7 +696,7 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
         {/* Payer */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Who paid?</label>
-          <select 
+          <select
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             value={payer}
             onChange={(e) => setPayer(e.target.value)}
@@ -657,8 +713,8 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
           <div className="space-y-2">
             {trip.members.map(m => (
               <label key={m} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                   checked={involvedMembers.includes(m)}
                   onChange={() => toggleMemberInvolvement(m)}
@@ -674,21 +730,21 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
         {/* Split Options */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">How to split?</label>
-          
+
           <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
-            <button 
+            <button
               onClick={() => setSplitType('equal')}
               className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'equal' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
             >
               Equally
             </button>
-            <button 
+            <button
               onClick={() => setSplitType('exact')}
               className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'exact' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
             >
               Exact
             </button>
-            <button 
+            <button
               onClick={() => setSplitType('percent')}
               className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'percent' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
             >
@@ -714,11 +770,11 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
                   <span className="text-sm font-medium text-gray-700">{trip.memberNames[m]}</span>
                   <div className="relative w-24">
                     <span className="absolute left-2 top-1.5 text-gray-500 text-sm">$</span>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       className="w-full bg-gray-50 border border-gray-200 rounded p-1 pl-5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       value={exactSplits[m] || ''}
-                      onChange={(e) => setExactSplits({...exactSplits, [m]: e.target.value})}
+                      onChange={(e) => setExactSplits({ ...exactSplits, [m]: e.target.value })}
                       placeholder="0.00"
                     />
                   </div>
@@ -734,11 +790,11 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
                   <span className="text-sm font-medium text-gray-700">{trip.memberNames[m]}</span>
                   <div className="relative w-24">
                     <span className="absolute right-2 top-1.5 text-gray-500 text-sm">%</span>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       className="w-full bg-gray-50 border border-gray-200 rounded p-1 pr-6 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       value={percentSplits[m] || ''}
-                      onChange={(e) => setPercentSplits({...percentSplits, [m]: e.target.value})}
+                      onChange={(e) => setPercentSplits({ ...percentSplits, [m]: e.target.value })}
                       placeholder="0"
                     />
                   </div>
@@ -748,7 +804,7 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
           )}
         </div>
 
-        <button 
+        <button
           onClick={handleSave}
           className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors mt-4"
         >
