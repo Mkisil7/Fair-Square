@@ -375,10 +375,10 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
 
   const myBalance = balances[user.uid] || 0;
 
-  // Calculate peer-to-peer debts
+  // Calculate peer-to-peer debts minimizing total transfers
   const calculateDebts = () => {
-    const debtors: { id: string, amount: number }[] = [];
-    const creditors: { id: string, amount: number }[] = [];
+    let debtors: { id: string, amount: number }[] = [];
+    let creditors: { id: string, amount: number }[] = [];
 
     // Separate into those who owe and those who are owed
     Object.entries(balances).forEach(([id, balance]) => {
@@ -387,15 +387,29 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
       else if (balance < -0.01) debtors.push({ id, amount: Math.abs(balance) });
     });
 
-    // Sort by amount for slightly better matching (largest to largest)
+    const debts: { from: string; to: string; amount: number }[] = [];
+
+    // Step 1: Find exact matches (someone owes exactly what someone else is owed)
+    // This further reduces the total number of transactions
+    for (let d = debtors.length - 1; d >= 0; d--) {
+      for (let c = creditors.length - 1; c >= 0; c--) {
+        if (Math.abs(debtors[d].amount - creditors[c].amount) < 0.01) {
+          debts.push({ from: debtors[d].id, to: creditors[c].id, amount: debtors[d].amount });
+          debtors.splice(d, 1);
+          creditors.splice(c, 1);
+          break; // Move to next debtor
+        }
+      }
+    }
+
+    // Sort remainders by amount (largest to largest) for Step 2
     debtors.sort((a, b) => b.amount - a.amount);
     creditors.sort((a, b) => b.amount - a.amount);
 
-    const debts: { from: string; to: string; amount: number }[] = [];
     let d = 0;
     let c = 0;
 
-    // Greedy matching algorithm
+    // Step 2: Greedy matching algorithm for the remaining balances
     while (d < debtors.length && c < creditors.length) {
       const debtor = debtors[d];
       const creditor = creditors[c];
