@@ -26,7 +26,9 @@ import {
   Plus,
   Receipt,
   UserPlus,
-  Pencil
+  Pencil,
+  Check,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -42,13 +44,34 @@ type Trip = {
 
 type Expense = {
   id: string;
-  amount: number;
+  amount: number; // Stored in USD equivalent
+  originalCurrency?: string;
+  originalAmount?: number;
   payer: string; // userId
   category: string;
   description: string;
   timestamp: any;
-  splits: Record<string, number>; // Map of userId to amount they owe
+  splits: Record<string, number>; // Map of userId to amount they owe (in USD)
   createdBy?: string;
+};
+
+// Hardcoded conversion rates to USD for simplicity
+const CURRENCY_RATES: Record<string, number> = {
+  'USD': 1.00,
+  'EUR': 1.08,
+  'GBP': 1.25,
+  'CAD': 0.74,
+  'AUD': 0.65,
+  'JPY': 0.0066
+};
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  'USD': '$',
+  'EUR': '€',
+  'GBP': '£',
+  'CAD': 'C$',
+  'AUD': 'A$',
+  'JPY': '¥'
 };
 
 // --- Main App Component ---
@@ -312,6 +335,8 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
   const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'edit' | 'friends'>('dashboard');
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(trip.name);
 
   // Listen to expenses for this trip
   useEffect(() => {
@@ -350,6 +375,48 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
 
   const myBalance = balances[user.uid] || 0;
 
+  // Calculate peer-to-peer debts
+  const calculateDebts = () => {
+    const debtors: { id: string, amount: number }[] = [];
+    const creditors: { id: string, amount: number }[] = [];
+
+    // Separate into those who owe and those who are owed
+    Object.entries(balances).forEach(([id, balance]) => {
+      // Balance is positive if they are owed money, negative if they owe money
+      if (balance > 0.01) creditors.push({ id, amount: balance });
+      else if (balance < -0.01) debtors.push({ id, amount: Math.abs(balance) });
+    });
+
+    // Sort by amount for slightly better matching (largest to largest)
+    debtors.sort((a, b) => b.amount - a.amount);
+    creditors.sort((a, b) => b.amount - a.amount);
+
+    const debts: { from: string; to: string; amount: number }[] = [];
+    let d = 0;
+    let c = 0;
+
+    // Greedy matching algorithm
+    while (d < debtors.length && c < creditors.length) {
+      const debtor = debtors[d];
+      const creditor = creditors[c];
+
+      const amount = Math.min(debtor.amount, creditor.amount);
+      if (amount > 0.01) {
+        debts.push({ from: debtor.id, to: creditor.id, amount });
+      }
+
+      debtor.amount -= amount;
+      creditor.amount -= amount;
+
+      if (debtor.amount < 0.01) d++;
+      if (creditor.amount < 0.01) c++;
+    }
+
+    return debts;
+  };
+
+  const debts = calculateDebts();
+
   const handleShare = async () => {
     const shareData = {
       title: `Join my trip: ${trip.name}`,
@@ -369,14 +436,54 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
     }
   };
 
+  const saveUpdatedName = async () => {
+    if (!editNameValue.trim() || editNameValue === trip.name) {
+      setIsEditingName(false);
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'trips', trip.id), {
+        name: editNameValue.trim()
+      });
+      // The parent component listens to snapshot so it will update automatically, or we just optimistically close
+      setIsEditingName(false);
+    } catch (err) {
+      console.error('Failed to update name', err);
+      alert('Failed to update trip name');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <header className="bg-white px-4 py-4 pt-10 shadow-sm z-10 flex items-center justify-between sticky top-0">
-        <button onClick={onBack} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
+      <header className="bg-white px-4 py-4 pt-10 shadow-sm z-10 flex items-center justify-between sticky top-0 min-h-[5rem]">
+        <button onClick={onBack} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full flex-shrink-0">
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-lg font-bold text-gray-900 truncate px-2">{trip.name}</h1>
-        <button onClick={handleShare} className="p-2 -mr-2 text-indigo-600 hover:bg-indigo-50 rounded-full">
+
+        {isEditingName ? (
+          <div className="flex-1 flex items-center px-2">
+            <input
+              value={editNameValue}
+              onChange={(e) => setEditNameValue(e.target.value)}
+              className="w-full font-bold text-gray-900 border-b-2 border-indigo-500 focus:outline-none bg-transparent px-1 py-1"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && saveUpdatedName()}
+            />
+            <button onClick={saveUpdatedName} className="p-1 ml-1 text-emerald-600 hover:bg-emerald-50 rounded">
+              <Check className="w-5 h-5" />
+            </button>
+            <button onClick={() => { setIsEditingName(false); setEditNameValue(trip.name); }} className="p-1 text-gray-400 hover:bg-gray-50 rounded">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center truncate px-2 group cursor-pointer" onClick={() => setIsEditingName(true)}>
+            <h1 className="text-lg font-bold text-gray-900 truncate">{trip.name}</h1>
+            <Pencil className="w-3.5 h-3.5 text-gray-400 ml-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+          </div>
+        )}
+
+        <button onClick={handleShare} className="p-2 -mr-2 text-indigo-600 hover:bg-indigo-50 rounded-full flex-shrink-0">
           <Share2 className="w-5 h-5" />
         </button>
       </header>
@@ -418,8 +525,15 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-gray-900">${exp.amount.toFixed(2)}</p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-bold text-gray-900">
+                          {exp.originalCurrency && exp.originalCurrency !== 'USD' ? (
+                            <span className="text-xs text-gray-400 mr-1 font-normal" title={`$${exp.amount.toFixed(2)} USD`}>
+                              {CURRENCY_SYMBOLS[exp.originalCurrency]}{exp.originalAmount?.toFixed(2)}
+                            </span>
+                          ) : null}
+                          ${exp.amount.toFixed(2)}
+                        </p>
                         {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
                           <p className="text-xs text-rose-500 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
                         )}
@@ -541,7 +655,8 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
 
 // --- Expense Form Tab (Add or Edit) ---
 function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, user: User, initialExpense?: Expense, onAdded: () => void }) {
-  const [amount, setAmount] = useState(initialExpense ? initialExpense.amount.toString() : '');
+  const [amount, setAmount] = useState(initialExpense ? (initialExpense.originalAmount || initialExpense.amount).toString() : '');
+  const [currency, setCurrency] = useState(initialExpense?.originalCurrency || 'USD');
   const [description, setDescription] = useState(initialExpense ? initialExpense.description : '');
   const [category, setCategory] = useState(initialExpense ? initialExpense.category : 'general');
   const [payer, setPayer] = useState(initialExpense ? initialExpense.payer : user.uid);
@@ -551,14 +666,14 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
     ? Object.keys(initialExpense.splits)
     : trip.members;
 
-  // If editing, try to infer the split type (simplified logic: if they are equal, it's 'equal', etc. 
-  // However, for simplicity without getting deep into reverse-math, we will default to 'exact' if there's an initial expense and it isn't clearly perfectly equal. You could improve this inference).
   let initialSplitType: 'equal' | 'exact' | 'percent' = 'equal';
   const initExact: Record<string, string> = {};
   if (initialExpense) {
-    initialSplitType = 'exact'; // Safest assumption when editing
-    for (const [uid, amt] of Object.entries(initialExpense.splits)) {
-      initExact[uid] = amt.toString();
+    initialSplitType = 'exact';
+    // For editing with different currencies, it's safest to convert the exact USD splits back to the original currency scale for display
+    const conversionRate = CURRENCY_RATES[initialExpense.originalCurrency || 'USD'] || 1.0;
+    for (const [uid, amtUSD] of Object.entries(initialExpense.splits)) {
+      initExact[uid] = (amtUSD / conversionRate).toFixed(2);
     }
   }
 
@@ -578,8 +693,8 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   };
 
   const handleSave = async () => {
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
+    const numAmountLocal = parseFloat(amount);
+    if (isNaN(numAmountLocal) || numAmountLocal <= 0) {
       alert('Please enter a valid amount');
       return;
     }
@@ -592,27 +707,31 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       return;
     }
 
-    const splits: Record<string, number> = {};
+    // Convert to USD for storage and internal math
+    const rate = CURRENCY_RATES[currency] || 1.0;
+    const numAmountUSD = numAmountLocal * rate;
+
+    const splitsUSD: Record<string, number> = {};
 
     if (splitType === 'equal') {
-      const splitAmount = numAmount / involvedMembers.length;
-      involvedMembers.forEach(m => splits[m] = splitAmount);
+      const splitAmountUSD = numAmountUSD / involvedMembers.length;
+      involvedMembers.forEach(m => splitsUSD[m] = splitAmountUSD);
     } else if (splitType === 'exact') {
-      let total = 0;
+      let totalLocal = 0;
       involvedMembers.forEach(m => {
-        const val = parseFloat(exactSplits[m] || '0');
-        splits[m] = val;
-        total += val;
+        const valLocal = parseFloat(exactSplits[m] || '0');
+        splitsUSD[m] = valLocal * rate;
+        totalLocal += valLocal;
       });
-      if (Math.abs(total - numAmount) > 0.01) {
-        alert(`Exact splits must sum to the total amount ($${numAmount}). Currently: $${total}`);
+      if (Math.abs(totalLocal - numAmountLocal) > 0.01) {
+        alert(`Exact splits must sum to the total amount (${CURRENCY_SYMBOLS[currency]}${numAmountLocal}). Currently: ${CURRENCY_SYMBOLS[currency]}${totalLocal}`);
         return;
       }
     } else if (splitType === 'percent') {
       let totalPct = 0;
       involvedMembers.forEach(m => {
         const pct = parseFloat(percentSplits[m] || '0');
-        splits[m] = (pct / 100) * numAmount;
+        splitsUSD[m] = (pct / 100) * numAmountUSD;
         totalPct += pct;
       });
       if (Math.abs(totalPct - 100) > 0.01) {
@@ -623,11 +742,13 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
 
     try {
       const payload = {
-        amount: numAmount,
+        amount: numAmountUSD,
+        originalCurrency: currency,
+        originalAmount: numAmountLocal,
         description,
         category,
         payer,
-        splits,
+        splits: splitsUSD,
         timestamp: initialExpense ? initialExpense.timestamp : serverTimestamp(),
         createdBy: initialExpense ? initialExpense.createdBy : user.uid
       };
@@ -649,18 +770,34 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       <h2 className="text-2xl font-bold text-gray-900 mb-6">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
 
       <div className="space-y-5">
-        {/* Amount */}
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <span className="text-gray-500 text-2xl font-medium">$</span>
+        {/* Amount & Currency */}
+        <div className="flex gap-3">
+          <div className="w-1/3">
+            <select
+              className="w-full h-full bg-white border border-gray-200 rounded-2xl px-3 py-4 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+            >
+              <option value="USD">🇺🇸 USD</option>
+              <option value="EUR">🇪🇺 EUR</option>
+              <option value="GBP">🇬🇧 GBP</option>
+              <option value="CAD">🇨🇦 CAD</option>
+              <option value="AUD">🇦🇺 AUD</option>
+              <option value="JPY">🇯🇵 JPY</option>
+            </select>
           </div>
-          <input
-            type="number"
-            placeholder="0.00"
-            className="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-4 py-4 text-3xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <span className="text-gray-500 text-2xl font-medium">{CURRENCY_SYMBOLS[currency] || '$'}</span>
+            </div>
+            <input
+              type="number"
+              placeholder="0.00"
+              className="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-4 py-4 text-3xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Description */}
@@ -684,8 +821,8 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
               key={cat.id}
               onClick={() => setCategory(cat.id)}
               className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${category === cat.id
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  : 'bg-white border-gray-200 text-gray-600'
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                : 'bg-white border-gray-200 text-gray-600'
                 }`}
             >
               <span>{cat.icon}</span> {cat.label}
@@ -757,7 +894,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
               Split equally among {involvedMembers.length} people.
               {amount && !isNaN(parseFloat(amount)) && involvedMembers.length > 0 && (
                 <span className="block font-medium text-gray-900 mt-1">
-                  ${(parseFloat(amount) / involvedMembers.length).toFixed(2)} / person
+                  {CURRENCY_SYMBOLS[currency] || '$'}{(parseFloat(amount) / involvedMembers.length).toFixed(2)} / person
                 </span>
               )}
             </p>
@@ -769,7 +906,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
                 <div key={m} className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">{trip.memberNames[m]}</span>
                   <div className="relative w-24">
-                    <span className="absolute left-2 top-1.5 text-gray-500 text-sm">$</span>
+                    <span className="absolute left-2 top-1.5 text-gray-500 text-sm">{CURRENCY_SYMBOLS[currency] || '$'}</span>
                     <input
                       type="number"
                       className="w-full bg-gray-50 border border-gray-200 rounded p-1 pl-5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
