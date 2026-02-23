@@ -19,8 +19,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.className}>
-      <body className="bg-gray-50 text-gray-900 antialiased min-h-screen flex flex-col" suppressHydrationWarning>
-        <main className="flex-1 w-full max-w-md mx-auto bg-white shadow-xl relative overflow-hidden flex flex-col">
+      <body className="bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100 antialiased h-[100dvh] flex flex-col" suppressHydrationWarning>
+        <main className="flex-1 w-full max-w-md mx-auto bg-white dark:bg-black shadow-xl relative overflow-hidden flex flex-col">
           {children}
           <Analytics />
           <SpeedInsights />
