@@ -686,29 +686,29 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
             {/* Recent Expenses */}
             <div>
-              <h3 className="font-bold text-gray-900 mb-4 text-lg">Recent Expenses</h3>
+              <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">Recent Expenses</h3>
               {expenses.length === 0 ? (
-                <div className="text-center py-8 bg-white rounded-2xl border border-gray-100">
-                  <Receipt className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500">No expenses yet.</p>
+                <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-800">
+                  <Receipt className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                  <p className="text-gray-500 dark:text-gray-400">No expenses yet.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {expenses.map(exp => (
-                    <div key={exp.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div key={exp.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between transition-colors">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-xl">
+                        <div className="w-10 h-10 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xl">
                           {exp.category === 'food' ? '🍔' : exp.category === 'transport' ? '🚕' : exp.category === 'lodging' ? '🏨' : '💸'}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900">{exp.description}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="font-semibold text-gray-900 dark:text-white">{exp.description}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                             {trip.memberNames[exp.payer]} paid • {exp.timestamp ? format(exp.timestamp.toDate(), 'MMM d') : 'Just now'}
                           </p>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-gray-900">
+                        <p className="font-bold text-gray-900 dark:text-white">
                           {exp.originalCurrency && exp.originalCurrency !== 'USD' ? (
                             <span className="text-xs text-gray-400 mr-1 font-normal" title={`$${exp.amount.toFixed(2)} USD`}>
                               {CURRENCY_SYMBOLS[exp.originalCurrency]}{exp.originalAmount?.toFixed(2)}
@@ -717,17 +717,17 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                           ${exp.amount.toFixed(2)}
                         </p>
                         {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
-                          <p className="text-xs text-rose-500 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
+                          <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
                         )}
                       </div>
                       {(exp.createdBy === user.uid || (!exp.createdBy && exp.payer === user.uid)) && (
-                        <div className="pl-4 ml-4 border-l border-gray-100 flex items-center">
+                        <div className="pl-4 ml-4 border-l border-gray-100 dark:border-gray-800 flex items-center">
                           <button
                             onClick={() => {
                               setEditingExpense(exp);
                               setActiveTab('edit');
                             }}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
                           >
                             <Pencil className="w-5 h-5" />
                           </button>
