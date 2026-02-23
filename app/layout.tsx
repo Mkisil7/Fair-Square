@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   description: 'A Mobile-First Expense Splitter for Trips',
 };
 
+import { Analytics } from '@vercel/analytics/next';
+
 export default function RootLayout({
   children,
 }: {
@@ -19,6 +21,7 @@ export default function RootLayout({
       <body className="bg-gray-50 text-gray-900 antialiased min-h-screen flex flex-col" suppressHydrationWarning>
         <main className="flex-1 w-full max-w-md mx-auto bg-white shadow-xl relative overflow-hidden flex flex-col">
           {children}
+          <Analytics />
         </main>
       </body>
     </html>
