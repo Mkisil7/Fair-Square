@@ -23,6 +23,7 @@ import {
   LogOut,
   Share2,
   ChevronLeft,
+  ChevronRight,
   Plus,
   Receipt,
   UserPlus,
@@ -158,6 +159,63 @@ function LoginScreen() {
   );
 }
 
+// --- Trip Card Component ---
+function TripCard({ trip, user, onClick }: { trip: Trip, user: User, onClick: () => void }) {
+  const [balance, setBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    // We only need a lightweight listener on expenses to calculate the user's balance
+    const q = query(collection(db, 'trips', trip.id, 'expenses'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let myBalance = 0;
+      snapshot.forEach((doc) => {
+        const exp = doc.data() as Expense;
+        // If user paid, they are owed money (+ balance)
+        if (exp.payer === user.uid) {
+          myBalance += exp.amount;
+        }
+        // If user is part of the split, they owe money (- balance)
+        if (exp.splits && exp.splits[user.uid] !== undefined) {
+          myBalance -= exp.splits[user.uid];
+        }
+      });
+      setBalance(myBalance);
+    });
+
+    return () => unsubscribe();
+  }, [trip.id, user.uid]);
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-left hover:shadow-md transition-shadow flex flex-col gap-3 group"
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="font-semibold text-lg text-gray-900 mb-1">{trip.name}</h3>
+          <p className="text-sm text-gray-500 flex items-center gap-1">
+            <Users className="w-4 h-4" /> {trip.members.length} members
+          </p>
+        </div>
+        <div className="w-10 h-10 bg-indigo-50 rounded-full flex flex-shrink-0 items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+          <ChevronRight className="w-5 h-5" />
+        </div>
+      </div>
+
+      {balance !== null && (
+        <div className={`mt-2 inline-flex py-1 px-3 rounded-full text-xs font-bold uppercase tracking-wide ${balance > 0.01 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+          balance < -0.01 ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+            'bg-gray-100 text-gray-500'
+          }`}>
+          {balance > 0.01 ? `You're owed $${balance.toFixed(2)}` :
+            balance < -0.01 ? `You owe $${Math.abs(balance).toFixed(2)}` :
+              'Settled up'}
+        </div>
+      )}
+    </button>
+  );
+}
+
 // --- Home Screen ---
 function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: Trip) => void }) {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -229,43 +287,46 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <header className="bg-white px-6 py-6 pt-12 shadow-sm z-10 flex justify-between items-center">
+      <header className="bg-white px-6 py-4 pt-10 shadow-sm z-10 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
-          <p className="text-sm text-gray-500">Welcome back, {user.displayName?.split(' ')[0]}</p>
         </div>
-        <button onClick={() => signOut(auth)} className="p-2 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full">
-          <LogOut className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          {user.photoURL ? (
+            <img src={user.photoURL} alt="Profile" className="w-10 h-10 rounded-full border-2 border-indigo-100 object-cover" />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold border-2 border-indigo-200">
+              {user.displayName?.charAt(0) || '?'}
+            </div>
+          )}
+          <button onClick={() => signOut(auth)} className="p-2 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full" title="Log Out">
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
         {trips.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Wallet className="w-8 h-8 text-gray-400" />
+          <div className="text-center py-12 px-4 animate-in fade-in slide-in-from-bottom-4">
+            <div className="w-48 h-48 mx-auto mb-6 opacity-90 transition-transform hover:scale-105 duration-300">
+              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
+                <circle cx="50" cy="50" r="45" fill="#f3f4f6" />
+                <path d="M20,60 Q35,40 50,60 T80,50 L80,95 L20,95 Z" fill="#d1d5db" />
+                <path d="M30,55 Q45,35 60,55 T90,45 L90,95 L30,95 Z" fill="#9ca3af" />
+                <circle cx="70" cy="25" r="8" fill="#fbbf24" />
+                <path d="M15,25 Q20,20 25,25 T35,25" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+                <path d="M40,15 Q45,10 50,15 T60,15" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+              </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No trips yet</h3>
-            <p className="text-gray-500 mb-6">Create a new trip or join an existing one.</p>
+            <h3 className="text-2xl font-extrabold text-gray-900 mb-2">You haven't planned any trips yet!</h3>
+            <p className="text-gray-500 mb-8 max-w-xs mx-auto text-sm">
+              Whether it's a weekend getaway or a cross-country road trip, Fair & Square makes it easy to split the costs.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
             {trips.map((trip) => (
-              <button
-                key={trip.id}
-                onClick={() => onSelectTrip(trip)}
-                className="w-full bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-left hover:shadow-md transition-shadow flex items-center justify-between group"
-              >
-                <div>
-                  <h3 className="font-semibold text-lg text-gray-900 mb-1">{trip.name}</h3>
-                  <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <Users className="w-4 h-4" /> {trip.members.length} members
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                  <ChevronLeft className="w-5 h-5 rotate-180" />
-                </div>
-              </button>
+              <TripCard key={trip.id} trip={trip} user={user} onClick={() => onSelectTrip(trip)} />
             ))}
           </div>
         )}
@@ -274,13 +335,13 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
       <div className="p-6 bg-white border-t border-gray-100 flex gap-3">
         <button
           onClick={() => setShowJoin(true)}
-          className="flex-1 bg-gray-100 text-gray-900 py-4 rounded-xl font-medium flex items-center justify-center gap-2"
+          className="flex-1 bg-gray-100 text-gray-900 py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
         >
           <UserPlus className="w-5 h-5" /> Join
         </button>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 shadow-md shadow-indigo-200"
+          className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-colors"
         >
           <Plus className="w-5 h-5" /> Create
         </button>
@@ -300,8 +361,8 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
               autoFocus
             />
             <div className="flex gap-3">
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 font-medium text-gray-500 bg-gray-100 rounded-xl">Cancel</button>
-              <button onClick={handleCreateTrip} className="flex-1 py-3 font-medium text-white bg-indigo-600 rounded-xl">Create</button>
+              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">Cancel</button>
+              <button onClick={handleCreateTrip} className="flex-1 py-3 font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">Create</button>
             </div>
           </div>
         </div>
@@ -320,8 +381,8 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
               autoFocus
             />
             <div className="flex gap-3">
-              <button onClick={() => setShowJoin(false)} className="flex-1 py-3 font-medium text-gray-500 bg-gray-100 rounded-xl">Cancel</button>
-              <button onClick={handleJoinTrip} className="flex-1 py-3 font-medium text-white bg-indigo-600 rounded-xl">Join</button>
+              <button onClick={() => setShowJoin(false)} className="flex-1 py-3 font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">Cancel</button>
+              <button onClick={handleJoinTrip} className="flex-1 py-3 font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">Join</button>
             </div>
           </div>
         </div>
