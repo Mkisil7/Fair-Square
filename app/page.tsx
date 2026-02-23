@@ -1050,17 +1050,11 @@ function FriendsTab({ trip, user, balances, debts, handleShare }: any) {
                   </div>
 
                   {/* Action Buttons for Relevant Users */}
-                  {(amISender || amIReceiver) && (
+                  {amISender && (
                     <div className="pt-4 border-t border-gray-50 dark:border-gray-800/50 flex justify-end">
-                      {amISender ? (
-                        <button className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto text-center">
-                          Pay ${debt.amount.toFixed(2)}
-                        </button>
-                      ) : (
-                        <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto text-center">
-                          Remind
-                        </button>
-                      )}
+                      <button className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto text-center">
+                        Pay ${debt.amount.toFixed(2)}
+                      </button>
                     </div>
                   )}
                 </div>
