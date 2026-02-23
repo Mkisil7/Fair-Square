@@ -97,11 +97,38 @@ export default function App() {
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // Notifications State
+  const [notifications, setNotifications] = useState<any[]>([]);
+
   useEffect(() => {
     const isDark = localStorage.getItem('theme') === 'dark';
     setIsDarkMode(isDark);
     if (isDark) document.documentElement.classList.add('dark');
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'users', user.uid, 'notifications'),
+      where('read', '==', false)
+      // Note: Ordering requires a composite index, so we sort client-side to avoid index requirement for now
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      notifs.sort((a: any, b: any) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
+      setNotifications(notifs);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const markNotificationRead = async (id: string) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'notifications', id), { read: true });
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const toggleTheme = () => {
     setIsDarkMode(prev => {
@@ -164,8 +191,29 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
-      <div className="flex-1 overflow-hidden relative">
+    <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100 relative">
+
+      {/* Toast Notifications */}
+      {notifications.length > 0 && (
+        <div className="fixed top-safe-pt pt-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[100] flex flex-col gap-2 pointer-events-none">
+          {notifications.map(notif => (
+            <div key={notif.id} className="bg-white dark:bg-zinc-800 shadow-xl rounded-2xl p-4 border border-indigo-100 dark:border-indigo-900/30 flex items-start gap-3 pointer-events-auto animate-in slide-in-from-top-4 fade-in duration-300">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                <Wallet className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-white leading-snug">{notif.message}</p>
+                <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold">Payment Received</p>
+              </div>
+              <button onClick={() => markNotificationRead(notif.id)} className="p-1 -m-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-hidden relative z-0">
         {renderContent()}
       </div>
 
@@ -594,6 +642,10 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
+  // Settle Up State
+  const [settleUpDebt, setSettleUpDebt] = useState<any | null>(null);
+  const [settleAmount, setSettleAmount] = useState<string>('');
+
   // Sync internal tab if parent tab changes
   useEffect(() => {
     setActiveTab(tab);
@@ -616,6 +668,67 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
     return () => unsubscribe();
   }, [trip.id]);
+
+  const executeSettleUp = async () => {
+    if (!settleUpDebt || !settleAmount) return;
+
+    const amountVal = parseFloat(settleAmount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+    if (amountVal > settleUpDebt.amount) {
+      alert("You cannot pay more than you owe.");
+      return;
+    }
+
+    const payeeId = settleUpDebt.to;
+
+    // 1. Record the Settlement Expense
+    const expensePayload = {
+      amount: amountVal,
+      originalCurrency: 'USD',
+      originalAmount: amountVal,
+      description: 'Settlement Payment',
+      category: 'settlement',
+      payer: user.uid,
+      splits: { [payeeId]: amountVal },
+      timestamp: serverTimestamp(),
+      createdBy: user.uid
+    };
+
+    try {
+      await addDoc(collection(db, 'trips', trip.id, 'expenses'), expensePayload);
+
+      // 2. Generate Notification for Payee
+      const remainingBalance = settleUpDebt.amount - amountVal;
+      let message = "";
+      if (remainingBalance <= 0.01) {
+        message = `${user.displayName || 'Someone'} has fully settled their balance with you! 💸🎉`;
+      } else {
+        message = `${user.displayName || 'Someone'} sent you $${amountVal.toFixed(2)}. They still owe you $${remainingBalance.toFixed(2)}.`;
+      }
+
+      await addDoc(collection(db, 'users', payeeId, 'notifications'), {
+        type: 'settlement',
+        tripId: trip.id,
+        payerId: user.uid,
+        payerName: user.displayName || 'Someone',
+        amount: amountVal,
+        remainingBalance: remainingBalance,
+        message: message,
+        timestamp: serverTimestamp(),
+        read: false
+      });
+
+      setSettleUpDebt(null);
+      setSettleAmount('');
+      // Note: The global snapshot listener for expenses will automatically refresh the balances!
+    } catch (e) {
+      console.error("Failed to settle up", e);
+      alert("Failed to process payment.");
+    }
+  };
 
   // Calculate balances
   const balances: Record<string, number> = {};
@@ -836,9 +949,17 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                       <h2 className="text-3xl font-bold tracking-tight mb-1">
                         ${debt.amount.toFixed(2)}
                       </h2>
-                      <p className="text-white/100 text-base font-semibold">
+                      <p className="text-white/100 text-base font-semibold mb-4">
                         {iOwe ? `You owe ${otherPersonName}` : `${otherPersonName} owes you`}
                       </p>
+                      {iOwe && (
+                        <button
+                          onClick={() => { setSettleUpDebt(debt); setSettleAmount(debt.amount.toFixed(2)); }}
+                          className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors"
+                        >
+                          Pay
+                        </button>
+                      )}
                     </div>
                   );
                 });
@@ -981,18 +1102,63 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
         )}
 
         {activeTab === 'friends' && (
-          <FriendsTab trip={trip} user={user} balances={balances} debts={debts} handleShare={handleShare} />
+          <FriendsTab
+            trip={trip}
+            user={user}
+            balances={balances}
+            debts={debts}
+            handleShare={handleShare}
+            onPay={(debt: any) => { setSettleUpDebt(debt); setSettleAmount(debt.amount.toFixed(2)); }}
+          />
         )}
 
         {activeTab === 'settings' && (
           <TripSettingsTab trip={trip} user={user} onBack={() => setActiveTab('dashboard')} handleShare={handleShare} />
         )}
       </div>
+
+      {/* Settle Up Modal */}
+      {settleUpDebt && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 pb-safe">
+          <div className="bg-white dark:bg-zinc-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settle Up</h2>
+              <button onClick={() => setSettleUpDebt(null)} className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">You owe {trip.memberNames[settleUpDebt.to]}</p>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <span className="text-gray-500 dark:text-gray-400 text-3xl font-bold">$</span>
+                </div>
+                <input
+                  type="number"
+                  className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl pl-12 pr-4 py-4 text-4xl font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={settleAmount}
+                  onChange={(e) => setSettleAmount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-2 text-right">Total Owed: ${settleUpDebt.amount.toFixed(2)}</p>
+            </div>
+
+            <button
+              onClick={executeSettleUp}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg py-4 rounded-2xl shadow-lg transition-colors"
+            >
+              Confirm Payment
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function FriendsTab({ trip, user, balances, debts, handleShare }: any) {
+function FriendsTab({ trip, user, balances, debts, handleShare, onPay }: any) {
   const [profiles, setProfiles] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -1052,7 +1218,10 @@ function FriendsTab({ trip, user, balances, debts, handleShare }: any) {
                   {/* Action Buttons for Relevant Users */}
                   {amISender && (
                     <div className="pt-4 border-t border-gray-50 dark:border-gray-800/50 flex justify-end">
-                      <button className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto text-center">
+                      <button
+                        onClick={() => onPay(debt)}
+                        className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto text-center"
+                      >
                         Pay ${debt.amount.toFixed(2)}
                       </button>
                     </div>
