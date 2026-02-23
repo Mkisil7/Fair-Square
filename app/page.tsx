@@ -31,7 +31,10 @@ import {
   Pencil,
   Check,
   X,
-  Settings
+  Settings,
+  Settings2,
+  Palmtree,
+  UserCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -42,6 +45,7 @@ type Trip = {
   createdBy: string;
   members: string[]; // Array of user IDs or emails
   memberNames: Record<string, string>; // Map of userId to name
+  notes?: string;
   createdAt: any;
 };
 
@@ -476,13 +480,73 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
   );
 }
 
+function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
+  const handleLeaveGroup = async () => {
+    if (trip.createdBy === user.uid) {
+      alert("As the creator, you cannot leave the trip. You must delete it instead.");
+      return;
+    }
+    if (confirm("Are you sure you want to leave this trip? You will no longer see its expenses.")) {
+      try {
+        const newMembers = trip.members.filter((id: string) => id !== user.uid);
+        const newMemberNames = { ...trip.memberNames };
+        delete newMemberNames[user.uid];
+        await updateDoc(doc(db, 'trips', trip.id), {
+          members: newMembers,
+          memberNames: newMemberNames
+        });
+        onBack();
+      } catch (err) {
+        console.error("Error leaving group:", err);
+        alert("Failed to leave group.");
+      }
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <h3 className="font-bold text-gray-900 dark:text-white mb-6 text-xl">Trip Settings</h3>
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden mb-6">
+        <div className="p-4 border-b border-gray-50 dark:border-gray-800">
+          <button onClick={handleShare} className="w-full flex justify-between items-center group">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <Plus className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-gray-900 dark:text-white">Add New Users</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Copy the invite link</p>
+              </div>
+            </div>
+          </button>
+        </div>
+        <div className="p-4">
+          <button onClick={handleLeaveGroup} className="w-full flex justify-between items-center group">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-rose-600 dark:text-rose-400">Leave Group</p>
+                <p className="text-xs text-rose-500/80 dark:text-rose-400/80">Remove yourself from this trip</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Trip Screen ---
-function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { user: User, trip: Trip, onBack: () => void, tab?: 'dashboard' | 'add' | 'edit' | 'friends', onFinishAdd?: () => void }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'edit' | 'friends'>(tab);
+function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { user: User, trip: Trip, onBack: () => void, tab?: 'dashboard' | 'add' | 'edit' | 'friends' | 'settings', onFinishAdd?: () => void }) {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'edit' | 'friends' | 'settings'>(tab);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(trip.name);
+  const [notesValue, setNotesValue] = useState(trip.notes || '');
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
 
   // Sync internal tab if parent tab changes
   useEffect(() => {
@@ -582,22 +646,28 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
   const debts = calculateDebts();
 
-  const handleShare = async () => {
-    const shareData = {
-      title: `Join my trip: ${trip.name}`,
-      text: `Join my trip "${trip.name}" on Fair & Square! Use this Trip ID: ${trip.id}`,
-      url: window.location.origin,
-    };
-
+  const handleShare = () => {
     if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        console.error('Error sharing', err);
-      }
+      navigator.share({
+        title: `Join my trip: ${trip.name}`,
+        text: 'Join my trip on Fair Square to split expenses!',
+        url: `${window.location.origin}?join=${trip.id}`
+      });
     } else {
       navigator.clipboard.writeText(trip.id);
       alert('Trip ID copied to clipboard!');
+    }
+  };
+
+  const saveUpdatedNotes = async () => {
+    try {
+      await updateDoc(doc(db, 'trips', trip.id), {
+        notes: notesValue.trim()
+      });
+      setIsEditingNotes(false);
+    } catch (err) {
+      console.error('Failed to update notes', err);
+      alert('Failed to update trip notes');
     }
   };
 
@@ -627,8 +697,8 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
           </button>
 
           <div className="flex items-center gap-2">
-            <button onClick={() => setActiveTab('friends')} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full cursor-pointer transition-colors">
-              <Share2 className="w-4 h-4" />
+            <button onClick={() => setActiveTab('settings')} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full cursor-pointer transition-colors">
+              <Settings2 className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -662,26 +732,68 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
         </div>
 
         <div className="flex gap-2">
-          {trip.members.map((memberId, i) => (
-            <div key={memberId} className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-gray-900 ${i !== 0 ? '-ml-3' : ''} bg-gradient-to-br from-indigo-400 to-purple-500`}>
-              {trip.memberNames[memberId]?.charAt(0).toUpperCase()}
-            </div>
-          ))}
+          {/* Members Pill Badge */}
+          <div className="flex items-center gap-1.5 bg-gray-100/50 dark:bg-zinc-800/50 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 cursor-pointer hover:bg-gray-200/50 dark:hover:bg-zinc-700/50 transition-colors" onClick={() => setActiveTab('friends')}>
+            <Users className="w-3.5 h-3.5" />
+            <span>{trip.members.length} member{trip.members.length !== 1 ? 's' : ''}</span>
+          </div>
+          {/* Active Status Pill */}
+          <div className="flex items-center gap-1.5 bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-emerald-100/50 dark:border-emerald-800/50">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span>Active</span>
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto pb-24">
+      {/* Background Graphic Watermark */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-[0.03] dark:opacity-[0.05] z-0">
+        <Palmtree className="w-96 h-96 text-gray-900 dark:text-white rotate-12" strokeWidth={1} />
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-24 relative z-10">
         {activeTab === 'dashboard' && (
           <div className="p-6 space-y-6">
             {/* Balance Card */}
-            <div className={`p-6 rounded-3xl text-white shadow-lg ${myBalance >= 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+            <div className={`p-6 rounded-3xl text-white shadow-lg ${Math.abs(myBalance) < 0.01 ? 'bg-indigo-500' : myBalance > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}>
               <p className="text-white/80 text-sm font-medium mb-1">Your Balance</p>
               <h2 className="text-4xl font-bold tracking-tight">
-                {myBalance >= 0 ? '+' : '-'}${Math.abs(myBalance).toFixed(2)}
+                {Math.abs(myBalance) < 0.01 ? '' : myBalance > 0 ? '+' : '-'}${Math.abs(myBalance) < 0.01 ? '0.00' : Math.abs(myBalance).toFixed(2)}
               </h2>
-              <p className="text-white/90 text-sm mt-2">
-                {myBalance > 0 ? 'You are owed' : myBalance < 0 ? 'You owe' : 'You are settled up'}
+              <p className="text-white/90 text-sm mt-2 font-medium">
+                {Math.abs(myBalance) < 0.01 ? '🎉 You are all settled up.' : myBalance > 0 ? 'The group owes you' : 'You owe the group'}
               </p>
+            </div>
+
+            {/* Add Group Notes */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 transition-colors">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-gray-900 dark:text-white text-sm">Group Notes</h3>
+                {!isEditingNotes && (
+                  <button onClick={() => setIsEditingNotes(true)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {isEditingNotes ? (
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    autoFocus
+                    className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
+                    rows={3}
+                    placeholder="Add an address, itinerary link, or general notes..."
+                    value={notesValue}
+                    onChange={(e) => setNotesValue(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => { setNotesValue(trip.notes || ''); setIsEditingNotes(false); }} className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5">Cancel</button>
+                    <button onClick={saveUpdatedNotes} className="text-xs font-bold bg-indigo-600 text-white px-4 py-1.5 rounded-full hover:bg-indigo-700 transition-colors">Save</button>
+                  </div>
+                </div>
+              ) : (
+                <p className={`text-sm ${trip.notes ? 'text-gray-700 dark:text-gray-300 whitespace-pre-wrap' : 'text-gray-400 italic'}`}>
+                  {trip.notes || 'Add an address, itinerary link, or general notes...'}
+                </p>
+              )}
             </div>
 
             {/* Recent Expenses */}
@@ -763,6 +875,10 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
         {activeTab === 'friends' && (
           <FriendsTab trip={trip} user={user} balances={balances} debts={debts} handleShare={handleShare} />
+        )}
+
+        {activeTab === 'settings' && (
+          <TripSettingsTab trip={trip} user={user} onBack={() => setActiveTab('dashboard')} handleShare={handleShare} />
         )}
       </div>
     </div>
