@@ -806,15 +806,43 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
       <div className="flex-1 overflow-y-auto pb-24 relative z-10">
         {activeTab === 'dashboard' && (
           <div className="p-6 space-y-6">
-            {/* Balance Card */}
-            <div className={`p-6 rounded-3xl text-white shadow-lg ${Math.abs(myBalance) < 0.01 ? 'bg-indigo-500' : myBalance > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`}>
-              <p className="text-white/80 text-sm font-medium mb-1">Your Balance</p>
-              <h2 className="text-4xl font-bold tracking-tight">
-                {Math.abs(myBalance) < 0.01 ? '' : myBalance > 0 ? '+' : '-'}${Math.abs(myBalance) < 0.01 ? '0.00' : Math.abs(myBalance).toFixed(2)}
-              </h2>
-              <p className="text-white/90 text-sm mt-2 font-medium">
-                {Math.abs(myBalance) < 0.01 ? '🎉 You are all settled up.' : myBalance > 0 ? 'The group owes you' : 'You owe the group'}
-              </p>
+            {/* Personalized Balance Cards */}
+            <div className="space-y-3">
+              {(() => {
+                // Filter the global debts array to only include settlements involving the current user
+                const myDebts = debts.filter(d => d.from === user.uid || d.to === user.uid);
+
+                if (myDebts.length === 0) {
+                  return (
+                    <div className="p-6 rounded-3xl text-white shadow-lg bg-indigo-500">
+                      <p className="text-white/80 text-sm font-medium mb-1">Your Balance</p>
+                      <h2 className="text-4xl font-bold tracking-tight mb-2">
+                        $0.00
+                      </h2>
+                      <p className="text-white/100 text-sm font-semibold">
+                        🎉 You are all settled up.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return myDebts.map((debt, idx) => {
+                  const iOwe = debt.from === user.uid;
+                  const otherPersonId = iOwe ? debt.to : debt.from;
+                  const otherPersonName = trip.memberNames[otherPersonId] || 'Unknown';
+
+                  return (
+                    <div key={idx} className={`p-6 rounded-3xl text-white shadow-md ${iOwe ? 'bg-rose-500' : 'bg-emerald-500'}`}>
+                      <h2 className="text-3xl font-bold tracking-tight mb-1">
+                        ${debt.amount.toFixed(2)}
+                      </h2>
+                      <p className="text-white/100 text-base font-semibold">
+                        {iOwe ? `You owe ${otherPersonName}` : `${otherPersonName} owes you`}
+                      </p>
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             {/* Add Group Notes */}
