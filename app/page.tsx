@@ -29,7 +29,8 @@ import {
   UserPlus,
   Pencil,
   Check,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -79,8 +80,33 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<'home' | 'trip'>('home');
+
+  // Global Navigation State
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'friends' | 'settings'>('dashboard');
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+
+  // Theme State
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const isDark = localStorage.getItem('theme') === 'dark';
+    setIsDarkMode(isDark);
+    if (isDark) document.documentElement.classList.add('dark');
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDarkMode(prev => {
+      const newDark = !prev;
+      if (newDark) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+      return newDark;
+    });
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -91,35 +117,88 @@ export default function App() {
   }, []);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center">Loading...</div>;
+    return <div className="flex-1 flex items-center justify-center dark:bg-gray-950 dark:text-white">Loading...</div>;
   }
 
   if (!user) {
     return <LoginScreen />;
   }
 
+  // Active View Router
+  const renderContent = () => {
+    if (activeTab === 'settings') {
+      return <SettingsScreen user={user} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
+    }
+
+    if (activeTab === 'dashboard') {
+      if (selectedTrip) {
+        return <TripScreen tab="dashboard" user={user} trip={selectedTrip} onBack={() => setSelectedTrip(null)} />;
+      }
+      return <HomeScreen user={user} onSelectTrip={(trip) => setSelectedTrip(trip)} />;
+    }
+
+    if (activeTab === 'add') {
+      if (selectedTrip) {
+        return <TripScreen tab="add" user={user} trip={selectedTrip} onBack={() => setSelectedTrip(null)} onFinishAdd={() => setActiveTab('dashboard')} />;
+      }
+      // If no trip selected, default to home view but maybe open create modal. For now, just show home.
+      return <HomeScreen user={user} onSelectTrip={(trip) => setSelectedTrip(trip)} />;
+    }
+
+    if (activeTab === 'friends') {
+      if (selectedTrip) {
+        return <TripScreen tab="friends" user={user} trip={selectedTrip} onBack={() => setSelectedTrip(null)} />;
+      }
+      // Global friends list not implemented yet, just show home
+      return <HomeScreen user={user} onSelectTrip={(trip) => setSelectedTrip(trip)} />;
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full w-full bg-gray-50">
-      {currentView === 'home' ? (
-        <HomeScreen
-          user={user}
-          onSelectTrip={(trip) => {
-            setSelectedTrip(trip);
-            setCurrentView('trip');
+    <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+      <div className="flex-1 overflow-hidden relative">
+        {renderContent()}
+      </div>
+
+      {/* Global Bottom Navigation */}
+      <nav className="bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-6 py-4 flex justify-between items-center w-full z-50">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+        >
+          <Wallet className="w-6 h-6" />
+          <span className="text-[10px] font-medium uppercase tracking-wider">Dashboard</span>
+        </button>
+
+        <button
+          onClick={() => {
+            // When user clicks add, set active tab to add.
+            // If they are on home, we could trigger a "new trip" modal, but for now we'll just switch the tab.
+            setActiveTab('add');
           }}
-        />
-      ) : (
-        selectedTrip && (
-          <TripScreen
-            user={user}
-            trip={selectedTrip}
-            onBack={() => {
-              setSelectedTrip(null);
-              setCurrentView('home');
-            }}
-          />
-        )
-      )}
+          className="flex-1 flex justify-center -mt-8"
+        >
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform ${activeTab === 'add' ? 'bg-indigo-700 dark:bg-indigo-500 scale-110' : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400'}`}>
+            <PlusCircle className="w-8 h-8 text-white" />
+          </div>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('friends')}
+          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'friends' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+        >
+          <Users className="w-6 h-6" />
+          <span className="text-[10px] font-medium uppercase tracking-wider">Friends</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'settings' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+        >
+          <Settings className="w-6 h-6" />
+          <span className="text-[10px] font-medium uppercase tracking-wider">Settings</span>
+        </button>
+      </nav>
     </div>
   );
 }
@@ -188,16 +267,16 @@ function TripCard({ trip, user, onClick }: { trip: Trip, user: User, onClick: ()
   return (
     <button
       onClick={onClick}
-      className="w-full bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-left hover:shadow-md transition-shadow flex flex-col gap-3 group"
+      className="w-full bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left hover:shadow-md transition-shadow flex flex-col gap-3 group"
     >
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-lg text-gray-900 mb-1">{trip.name}</h3>
-          <p className="text-sm text-gray-500 flex items-center gap-1">
+          <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-1">{trip.name}</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
             <Users className="w-4 h-4" /> {trip.members.length} members
           </p>
         </div>
-        <div className="w-10 h-10 bg-indigo-50 rounded-full flex flex-shrink-0 items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+        <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex flex-shrink-0 items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-500 transition-colors">
           <ChevronRight className="w-5 h-5" />
         </div>
       </div>
@@ -287,21 +366,18 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <header className="bg-white px-6 py-4 pt-10 shadow-sm z-10 flex justify-between items-center">
+      <header className="bg-white dark:bg-gray-900 px-6 py-4 pt-10 shadow-sm z-10 flex justify-between items-center transition-colors">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Trips</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Trips</h1>
         </div>
         <div className="flex items-center gap-3">
           {user.photoURL ? (
-            <img src={user.photoURL} alt="Profile" className="w-10 h-10 rounded-full border-2 border-indigo-100 object-cover" />
+            <img src={user.photoURL} alt="Profile" className="w-10 h-10 rounded-full border-2 border-indigo-100 dark:border-indigo-900 object-cover" />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold border-2 border-indigo-200">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold border-2 border-indigo-200 dark:border-indigo-800">
               {user.displayName?.charAt(0) || '?'}
             </div>
           )}
-          <button onClick={() => signOut(auth)} className="p-2 text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full" title="Log Out">
-            <LogOut className="w-5 h-5" />
-          </button>
         </div>
       </header>
 
@@ -318,8 +394,8 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
                 <path d="M40,15 Q45,10 50,15 T60,15" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
               </svg>
             </div>
-            <h3 className="text-2xl font-extrabold text-gray-900 mb-2">You haven't planned any trips yet!</h3>
-            <p className="text-gray-500 mb-8 max-w-xs mx-auto text-sm">
+            <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">You haven't planned any trips yet!</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-xs mx-auto text-sm">
               Whether it's a weekend getaway or a cross-country road trip, Fair & Square makes it easy to split the costs.
             </p>
           </div>
@@ -332,10 +408,10 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
         )}
       </div>
 
-      <div className="p-6 bg-white border-t border-gray-100 flex gap-3">
+      <div className="p-6 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex gap-3 transition-colors">
         <button
           onClick={() => setShowJoin(true)}
-          className="flex-1 bg-gray-100 text-gray-900 py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+          className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         >
           <UserPlus className="w-5 h-5" /> Join
         </button>
@@ -350,12 +426,12 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
       {/* Modals */}
       {showCreate && (
         <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
-            <h2 className="text-xl font-bold mb-4">Create New Trip</h2>
+          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Trip</h2>
             <input
               type="text"
               placeholder="Trip Name (e.g. Bali 2024)"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={newTripName}
               onChange={(e) => setNewTripName(e.target.value)}
               autoFocus
@@ -370,12 +446,12 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
 
       {showJoin && (
         <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
-            <h2 className="text-xl font-bold mb-4">Join a Trip</h2>
+          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Join a Trip</h2>
             <input
               type="text"
               placeholder="Paste Trip ID here"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
               value={joinTripId}
               onChange={(e) => setJoinTripId(e.target.value)}
               autoFocus
@@ -392,12 +468,17 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
 }
 
 // --- Trip Screen ---
-function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'edit' | 'friends'>('dashboard');
+function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { user: User, trip: Trip, onBack: () => void, tab?: 'dashboard' | 'add' | 'edit' | 'friends', onFinishAdd?: () => void }) {
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'edit' | 'friends'>(tab);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(trip.name);
+
+  // Sync internal tab if parent tab changes
+  useEffect(() => {
+    setActiveTab(tab);
+  }, [tab]);
 
   // Listen to expenses for this trip
   useEffect(() => {
@@ -529,38 +610,55 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <header className="bg-white px-4 py-4 pt-10 shadow-sm z-10 flex items-center justify-between sticky top-0 min-h-[5rem]">
-        <button onClick={onBack} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full flex-shrink-0">
-          <ChevronLeft className="w-6 h-6" />
-        </button>
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950">
+      <header className="bg-white dark:bg-gray-900 px-6 py-4 pt-10 shadow-sm z-10 sticky top-0 transition-colors">
+        <div className="flex justify-between items-center mb-6">
+          <button onClick={onBack} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full cursor-pointer transition-colors">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
 
-        {isEditingName ? (
-          <div className="flex-1 flex items-center px-2">
-            <input
-              value={editNameValue}
-              onChange={(e) => setEditNameValue(e.target.value)}
-              className="w-full font-bold text-gray-900 border-b-2 border-indigo-500 focus:outline-none bg-transparent px-1 py-1"
-              autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && saveUpdatedName()}
-            />
-            <button onClick={saveUpdatedName} className="p-1 ml-1 text-emerald-600 hover:bg-emerald-50 rounded">
-              <Check className="w-5 h-5" />
-            </button>
-            <button onClick={() => { setIsEditingName(false); setEditNameValue(trip.name); }} className="p-1 text-gray-400 hover:bg-gray-50 rounded">
-              <X className="w-5 h-5" />
+          <div className="flex items-center gap-2">
+            <button onClick={() => setActiveTab('friends')} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full cursor-pointer transition-colors">
+              <Share2 className="w-4 h-4" />
             </button>
           </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center truncate px-2 group cursor-pointer" onClick={() => setIsEditingName(true)}>
-            <h1 className="text-lg font-bold text-gray-900 truncate">{trip.name}</h1>
-            <Pencil className="w-3.5 h-3.5 text-gray-400 ml-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-          </div>
-        )}
+        </div>
 
-        <button onClick={handleShare} className="p-2 -mr-2 text-indigo-600 hover:bg-indigo-50 rounded-full flex-shrink-0">
-          <Share2 className="w-5 h-5" />
-        </button>
+        <div className="mb-2 flex items-center justify-between">
+          {isEditingName ? (
+            <div className="flex items-center gap-2 w-full">
+              <input
+                type="text"
+                autoFocus
+                className="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none w-full"
+                value={editNameValue}
+                onChange={(e) => setEditNameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveUpdatedName();
+                  if (e.key === 'Escape') {
+                    setEditNameValue(trip.name);
+                    setIsEditingName(false);
+                  }
+                }}
+              />
+              <button onClick={saveUpdatedName} className="p-1.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-400 rounded-full"><Check className="w-5 h-5" /></button>
+              <button onClick={() => { setEditNameValue(trip.name); setIsEditingName(false); }} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full"><X className="w-5 h-5" /></button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingName(true)}>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{trip.name}</h1>
+              <Pencil className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-indigo-500 transition-colors" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          {trip.members.map((memberId, i) => (
+            <div key={memberId} className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-gray-900 ${i !== 0 ? '-ml-3' : ''} bg-gradient-to-br from-indigo-400 to-purple-500`}>
+              {trip.memberNames[memberId]?.charAt(0).toUpperCase()}
+            </div>
+          ))}
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto pb-24">
@@ -683,6 +781,32 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
               ))}
             </div>
 
+            {/* How to Settle Up Section */}
+            {debts.length > 0 && (
+              <div className="mt-8">
+                <h3 className="font-bold text-gray-900 text-lg mb-4">How to Settle Up</h3>
+                <div className="space-y-3">
+                  {debts.map((debt, idx) => (
+                    <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+                      <div className="flex-1 flex items-center justify-between text-sm">
+                        <span className="font-medium text-gray-900">{trip.memberNames[debt.from]} {debt.from === user.uid && '(You)'}</span>
+                        <div className="flex flex-col items-center px-4 text-gray-400">
+                          <span className="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Pays</span>
+                          <div className="w-8 h-px bg-gray-200 relative">
+                            <div className="absolute right-0 -top-[3px] border-solid border-l-gray-200 border-l-[4px] border-y-transparent border-y-[3px] border-r-0"></div>
+                          </div>
+                        </div>
+                        <span className="font-medium text-gray-900">{trip.memberNames[debt.to]} {debt.to === user.uid && '(You)'}</span>
+                      </div>
+                      <div className="font-bold text-gray-900 pl-4 border-l border-gray-100">
+                        ${debt.amount.toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-8 bg-gray-100 p-4 rounded-xl">
               <p className="text-xs text-gray-500 text-center uppercase tracking-wider font-semibold mb-2">Trip ID</p>
               <div className="flex items-center justify-center gap-2">
@@ -693,37 +817,64 @@ function TripScreen({ user, trip, onBack }: { user: User, trip: Trip, onBack: ()
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      {/* Bottom Navigation */}
-      <nav className="bg-white border-t border-gray-100 px-6 py-4 flex justify-between items-center absolute bottom-0 w-full pb-6">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'dashboard' ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-        >
-          <Wallet className="w-6 h-6" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Dashboard</span>
-        </button>
+// --- Settings Screen ---
+function SettingsScreen({ user, isDarkMode, toggleTheme }: { user: User, isDarkMode: boolean, toggleTheme: () => void }) {
+  return (
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950">
+      <header className="bg-white dark:bg-gray-900 px-6 py-4 pt-10 shadow-sm z-10">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
+      </header>
 
-        <button
-          onClick={() => {
-            setEditingExpense(null);
-            setActiveTab('add');
-          }}
-          className="flex-1 flex justify-center -mt-8"
-        >
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform ${activeTab === 'add' || activeTab === 'edit' ? 'bg-indigo-700 scale-110' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
-            <PlusCircle className="w-8 h-8 text-white" />
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+          <div className="p-4 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full border-2 border-indigo-100 dark:border-indigo-900 object-cover" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold text-lg">
+                  {user.displayName?.charAt(0) || '?'}
+                </div>
+              )}
+              <div>
+                <p className="font-bold text-gray-900 dark:text-white text-lg">{user.displayName}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{user.email}</p>
+              </div>
+            </div>
           </div>
-        </button>
+          <div className="p-2">
+            <button onClick={() => signOut(auth)} className="w-full text-left px-4 py-3 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl font-medium flex items-center gap-3 transition-colors">
+              <LogOut className="w-5 h-5" /> Sign Out
+            </button>
+          </div>
+        </div>
 
-        <button
-          onClick={() => setActiveTab('friends')}
-          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'friends' ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-        >
-          <Users className="w-6 h-6" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Friends</span>
-        </button>
-      </nav>
+        <div>
+          <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">Preferences</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="p-4 flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">Dark Mode</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Toggle dark appearance</p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                className={`w-12 h-6 rounded-full transition-colors relative ${isDarkMode ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${isDarkMode ? 'translate-x-6.5 left-0.5' : 'translate-x-0.5'}`}></div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center pt-8">
+          <p className="text-xs text-gray-400">Fair & Square v1.0.0</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -849,7 +1000,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         <div className="flex gap-3">
           <div className="w-1/3">
             <select
-              className="w-full h-full bg-white border border-gray-200 rounded-2xl px-3 py-4 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none"
+              className="w-full h-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-4 text-sm font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
             >
@@ -863,12 +1014,12 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
           </div>
           <div className="relative flex-1">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <span className="text-gray-500 text-2xl font-medium">{CURRENCY_SYMBOLS[currency] || '$'}</span>
+              <span className="text-gray-500 dark:text-gray-400 text-2xl font-medium">{CURRENCY_SYMBOLS[currency] || '$'}</span>
             </div>
             <input
               type="number"
               placeholder="0.00"
-              className="w-full bg-white border border-gray-200 rounded-2xl pl-10 pr-4 py-4 text-3xl font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl pl-10 pr-4 py-4 text-3xl font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
@@ -879,7 +1030,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         <input
           type="text"
           placeholder="What was this for?"
-          className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+          className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -896,8 +1047,8 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
               key={cat.id}
               onClick={() => setCategory(cat.id)}
               className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${category === cat.id
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                : 'bg-white border-gray-200 text-gray-600'
+                ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400'
+                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
                 }`}
             >
               <span>{cat.icon}</span> {cat.label}
@@ -906,10 +1057,10 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         </div>
 
         {/* Payer */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Who paid?</label>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Who paid?</label>
           <select
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             value={payer}
             onChange={(e) => setPayer(e.target.value)}
           >
@@ -920,18 +1071,18 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         </div>
 
         {/* Involved Members */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Who is involved?</label>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Who is involved?</label>
           <div className="space-y-2">
             {trip.members.map(m => (
-              <label key={m} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+              <label key={m} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                  className="w-4 h-4 text-indigo-600 dark:bg-gray-800 rounded border-gray-300 dark:border-gray-700 focus:ring-indigo-500"
                   checked={involvedMembers.includes(m)}
                   onChange={() => toggleMemberInvolvement(m)}
                 />
-                <span className="text-sm font-medium text-gray-700 select-none">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 select-none">
                   {trip.memberNames[m]} {m === user.uid && '(You)'}
                 </span>
               </label>
@@ -940,35 +1091,35 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         </div>
 
         {/* Split Options */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">How to split?</label>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">How to split?</label>
 
-          <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-4">
             <button
               onClick={() => setSplitType('equal')}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'equal' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'equal' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
             >
               Equally
             </button>
             <button
               onClick={() => setSplitType('exact')}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'exact' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'exact' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
             >
               Exact
             </button>
             <button
               onClick={() => setSplitType('percent')}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'percent' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors ${splitType === 'percent' ? 'bg-white dark:bg-gray-700 shadow text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
             >
               Percent
             </button>
           </div>
 
           {splitType === 'equal' && (
-            <p className="text-sm text-gray-500 text-center py-2">
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
               Split equally among {involvedMembers.length} people.
               {amount && !isNaN(parseFloat(amount)) && involvedMembers.length > 0 && (
-                <span className="block font-medium text-gray-900 mt-1">
+                <span className="block font-medium text-gray-900 dark:text-white mt-1">
                   {CURRENCY_SYMBOLS[currency] || '$'}{(parseFloat(amount) / involvedMembers.length).toFixed(2)} / person
                 </span>
               )}
@@ -979,12 +1130,12 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
             <div className="space-y-2">
               {involvedMembers.map(m => (
                 <div key={m} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">{trip.memberNames[m]}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{trip.memberNames[m]}</span>
                   <div className="relative w-24">
-                    <span className="absolute left-2 top-1.5 text-gray-500 text-sm">{CURRENCY_SYMBOLS[currency] || '$'}</span>
+                    <span className="absolute left-2 top-1.5 text-gray-500 dark:text-gray-400 text-sm">{CURRENCY_SYMBOLS[currency] || '$'}</span>
                     <input
                       type="number"
-                      className="w-full bg-gray-50 border border-gray-200 rounded p-1 pl-5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded p-1 pl-5 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       value={exactSplits[m] || ''}
                       onChange={(e) => setExactSplits({ ...exactSplits, [m]: e.target.value })}
                       placeholder="0.00"
@@ -999,12 +1150,12 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
             <div className="space-y-2">
               {involvedMembers.map(m => (
                 <div key={m} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">{trip.memberNames[m]}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{trip.memberNames[m]}</span>
                   <div className="relative w-24">
-                    <span className="absolute right-2 top-1.5 text-gray-500 text-sm">%</span>
+                    <span className="absolute right-2 top-1.5 text-gray-500 dark:text-gray-400 text-sm">%</span>
                     <input
                       type="number"
-                      className="w-full bg-gray-50 border border-gray-200 rounded p-1 pr-6 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded p-1 pr-6 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       value={percentSplits[m] || ''}
                       onChange={(e) => setPercentSplits({ ...percentSplits, [m]: e.target.value })}
                       placeholder="0"
