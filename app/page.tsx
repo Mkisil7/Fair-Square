@@ -14,7 +14,8 @@ import {
   getDoc,
   updateDoc,
   arrayUnion,
-  orderBy
+  orderBy,
+  setDoc
 } from 'firebase/firestore';
 import {
   Wallet,
@@ -117,7 +118,7 @@ export default function App() {
   }, []);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center dark:bg-gray-950 dark:text-white">Loading...</div>;
+    return <div className="flex-1 flex items-center justify-center dark:bg-black dark:text-white">Loading...</div>;
   }
 
   if (!user) {
@@ -155,13 +156,13 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
       <div className="flex-1 overflow-hidden relative">
         {renderContent()}
       </div>
 
       {/* Global Bottom Navigation */}
-      <nav className="bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-6 py-4 flex justify-between items-center w-full z-50">
+      <nav className="shrink-0 mt-auto bg-white dark:bg-zinc-900 border-t border-gray-100 dark:border-gray-800 px-6 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)] flex justify-between items-center w-full z-50">
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
@@ -207,7 +208,15 @@ export default function App() {
 function LoginScreen() {
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        lastSeen: serverTimestamp()
+      }, { merge: true });
     } catch (error) {
       console.error('Error signing in', error);
       alert('Failed to sign in. Please check your Firebase configuration.');
@@ -267,7 +276,7 @@ function TripCard({ trip, user, onClick }: { trip: Trip, user: User, onClick: ()
   return (
     <button
       onClick={onClick}
-      className="w-full bg-white dark:bg-gray-900 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left hover:shadow-md transition-shadow flex flex-col gap-3 group"
+      className="w-full bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left hover:shadow-md transition-shadow flex flex-col gap-3 group"
     >
       <div className="flex items-start justify-between">
         <div>
@@ -365,8 +374,8 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <header className="bg-white dark:bg-gray-900 px-6 py-4 pt-10 shadow-sm z-10 flex justify-between items-center transition-colors">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black">
+      <header className="bg-white dark:bg-zinc-900 px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 flex justify-between items-center transition-colors">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Trips</h1>
         </div>
@@ -408,7 +417,7 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
         )}
       </div>
 
-      <div className="p-6 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex gap-3 transition-colors">
+      <div className="p-6 bg-white dark:bg-zinc-900 border-t border-gray-100 dark:border-gray-800 flex gap-3 transition-colors">
         <button
           onClick={() => setShowJoin(true)}
           className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -426,12 +435,12 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
       {/* Modals */}
       {showCreate && (
         <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Trip</h2>
             <input
               type="text"
               placeholder="Trip Name (e.g. Bali 2024)"
-              className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={newTripName}
               onChange={(e) => setNewTripName(e.target.value)}
               autoFocus
@@ -446,12 +455,12 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
 
       {showJoin && (
         <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Join a Trip</h2>
             <input
               type="text"
               placeholder="Paste Trip ID here"
-              className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
               value={joinTripId}
               onChange={(e) => setJoinTripId(e.target.value)}
               autoFocus
@@ -610,8 +619,8 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950">
-      <header className="bg-white dark:bg-gray-900 px-6 py-4 pt-10 shadow-sm z-10 sticky top-0 transition-colors">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black">
+      <header className="bg-white dark:bg-zinc-900 px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 sticky top-0 transition-colors">
         <div className="flex justify-between items-center mb-6">
           <button onClick={onBack} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full cursor-pointer transition-colors">
             <ChevronLeft className="w-5 h-5" />
@@ -753,69 +762,111 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
         )}
 
         {activeTab === 'friends' && (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-gray-900 text-lg">Trip Members</h3>
-              <button onClick={handleShare} className="text-sm font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full flex items-center gap-1">
-                <Plus className="w-4 h-4" /> Invite
-              </button>
-            </div>
+          <FriendsTab trip={trip} user={user} balances={balances} debts={debts} handleShare={handleShare} />
+        )}
+      </div>
+    </div>
+  );
+}
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              {trip.members.map((memberId, idx) => (
-                <div key={memberId} className={`p-4 flex items-center justify-between ${idx !== trip.members.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                      {trip.memberNames[memberId]?.charAt(0).toUpperCase()}
+function FriendsTab({ trip, user, balances, debts, handleShare }: any) {
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    async function loadProfiles() {
+      try {
+        const fetchPromises = trip.members.map((id: string) => getDoc(doc(db, 'users', id)));
+        const snapDocs = await Promise.all(fetchPromises);
+        const newProfiles: Record<string, any> = {};
+        snapDocs.forEach(d => {
+          if (d.exists()) newProfiles[d.id] = d.data();
+        });
+        setProfiles(newProfiles);
+      } catch (e) {
+        console.error("Failed to fetch profiles", e);
+      }
+    }
+    loadProfiles();
+  }, [trip.members]);
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="font-bold text-gray-900 dark:text-white text-lg">Trip Members</h3>
+        <button onClick={handleShare} className="text-sm font-medium text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full flex items-center gap-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+          <Plus className="w-4 h-4" /> Invite
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+        {trip.members.map((memberId: string, idx: number) => {
+          const profile = profiles[memberId];
+          return (
+            <div key={memberId} className={`p-4 flex items-center justify-between ${idx !== trip.members.length - 1 ? 'border-b border-gray-50 dark:border-gray-800' : ''}`}>
+              <div className="flex items-center gap-3">
+                {profile?.photoURL ? (
+                  <img src={profile.photoURL} alt="Profile" className="w-10 h-10 rounded-full border border-gray-200 dark:border-gray-700 object-cover" />
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                    {trip.memberNames[memberId]?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {trip.memberNames[memberId]} {memberId === user.uid && '(You)'}
+                  </p>
+                  <p className={`text-sm font-medium ${balances[memberId] > 0 ? 'text-emerald-500 dark:text-emerald-400' : balances[memberId] < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-gray-400'}`}>
+                    {balances[memberId] > 0 ? `Gets back $${balances[memberId].toFixed(2)}` : balances[memberId] < 0 ? `Owes $${Math.abs(balances[memberId]).toFixed(2)}` : 'Settled up'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* How to Settle Up Section */}
+      {debts.length > 0 && (
+        <div className="mt-8">
+          <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-4">How to Settle Up</h3>
+          <div className="space-y-3">
+            {debts.map((debt: any, idx: number) => {
+              const fromProfile = profiles[debt.from];
+              const toProfile = profiles[debt.to];
+              return (
+                <div key={idx} className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-3">
+                  <div className="flex-1 flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      {fromProfile?.photoURL ? <img src={fromProfile.photoURL} className="w-6 h-6 rounded-full" /> : <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-500">{trip.memberNames[debt.from]?.charAt(0).toUpperCase()}</div>}
+                      <span className="font-medium text-gray-900 dark:text-white truncate max-w-[80px]">{trip.memberNames[debt.from]}</span>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {trip.memberNames[memberId]} {memberId === user.uid && '(You)'}
-                      </p>
-                      <p className={`text-sm font-medium ${balances[memberId] > 0 ? 'text-emerald-500' : balances[memberId] < 0 ? 'text-rose-500' : 'text-gray-400'}`}>
-                        {balances[memberId] > 0 ? `Gets back $${balances[memberId].toFixed(2)}` : balances[memberId] < 0 ? `Owes $${Math.abs(balances[memberId]).toFixed(2)}` : 'Settled up'}
-                      </p>
+                    <div className="flex flex-col items-center px-2 text-gray-400">
+                      <span className="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Pays</span>
+                      <div className="w-8 h-px bg-gray-200 dark:bg-gray-700 relative">
+                        <div className="absolute right-0 -top-[3px] border-solid border-l-gray-200 dark:border-l-gray-700 border-l-[4px] border-y-transparent border-y-[3px] border-r-0"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {toProfile?.photoURL ? <img src={toProfile.photoURL} className="w-6 h-6 rounded-full" /> : <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-[10px] font-bold text-gray-500">{trip.memberNames[debt.to]?.charAt(0).toUpperCase()}</div>}
+                      <span className="font-medium text-gray-900 dark:text-white truncate max-w-[80px]">{trip.memberNames[debt.to]}</span>
                     </div>
                   </div>
+                  <div className="font-bold text-gray-900 dark:text-white pl-4 border-l border-gray-100 dark:border-gray-800">
+                    ${debt.amount.toFixed(2)}
+                  </div>
                 </div>
-              ))}
-            </div>
-
-            {/* How to Settle Up Section */}
-            {debts.length > 0 && (
-              <div className="mt-8">
-                <h3 className="font-bold text-gray-900 text-lg mb-4">How to Settle Up</h3>
-                <div className="space-y-3">
-                  {debts.map((debt, idx) => (
-                    <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
-                      <div className="flex-1 flex items-center justify-between text-sm">
-                        <span className="font-medium text-gray-900">{trip.memberNames[debt.from]} {debt.from === user.uid && '(You)'}</span>
-                        <div className="flex flex-col items-center px-4 text-gray-400">
-                          <span className="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Pays</span>
-                          <div className="w-8 h-px bg-gray-200 relative">
-                            <div className="absolute right-0 -top-[3px] border-solid border-l-gray-200 border-l-[4px] border-y-transparent border-y-[3px] border-r-0"></div>
-                          </div>
-                        </div>
-                        <span className="font-medium text-gray-900">{trip.memberNames[debt.to]} {debt.to === user.uid && '(You)'}</span>
-                      </div>
-                      <div className="font-bold text-gray-900 pl-4 border-l border-gray-100">
-                        ${debt.amount.toFixed(2)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-8 bg-gray-100 p-4 rounded-xl">
-              <p className="text-xs text-gray-500 text-center uppercase tracking-wider font-semibold mb-2">Trip ID</p>
-              <div className="flex items-center justify-center gap-2">
-                <code className="font-mono text-sm bg-white px-3 py-1.5 rounded border border-gray-200">{trip.id}</code>
-                <button onClick={() => { navigator.clipboard.writeText(trip.id); alert('Copied!'); }} className="text-indigo-600 text-sm font-medium">Copy</button>
-              </div>
-            </div>
+              )
+            })}
           </div>
-        )}
+        </div>
+      )}
+
+      <div className="mt-8 bg-gray-100 dark:bg-gray-800 p-4 rounded-xl">
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center uppercase tracking-wider font-semibold mb-2">Trip ID</p>
+        <div className="flex items-center justify-center gap-2">
+          <code className="font-mono text-sm bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 px-3 py-1.5 rounded border border-gray-200 dark:border-gray-700">{trip.id}</code>
+          <button onClick={() => { navigator.clipboard.writeText(trip.id); alert('Copied!'); }} className="text-indigo-600 dark:text-indigo-400 text-sm font-medium">Copy</button>
+        </div>
       </div>
     </div>
   );
@@ -824,13 +875,13 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 // --- Settings Screen ---
 function SettingsScreen({ user, isDarkMode, toggleTheme }: { user: User, isDarkMode: boolean, toggleTheme: () => void }) {
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950">
-      <header className="bg-white dark:bg-gray-900 px-6 py-4 pt-10 shadow-sm z-10">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black">
+      <header className="bg-white dark:bg-zinc-900 px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 transition-colors">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
           <div className="p-4 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {user.photoURL ? (
@@ -855,7 +906,7 @@ function SettingsScreen({ user, isDarkMode, toggleTheme }: { user: User, isDarkM
 
         <div>
           <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">Preferences</h3>
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="p-4 flex items-center justify-between">
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">Dark Mode</p>
@@ -1000,7 +1051,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         <div className="flex gap-3">
           <div className="w-1/3">
             <select
-              className="w-full h-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-4 text-sm font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none"
+              className="w-full h-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-4 text-sm font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
             >
@@ -1019,7 +1070,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
             <input
               type="number"
               placeholder="0.00"
-              className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl pl-10 pr-4 py-4 text-3xl font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-800 rounded-2xl pl-10 pr-4 py-4 text-3xl font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
@@ -1030,7 +1081,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         <input
           type="text"
           placeholder="What was this for?"
-          className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+          className="w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -1048,7 +1099,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
               onClick={() => setCategory(cat.id)}
               className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${category === cat.id
                 ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400'
-                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
+                : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
                 }`}
             >
               <span>{cat.icon}</span> {cat.label}
@@ -1057,10 +1108,10 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         </div>
 
         {/* Payer */}
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Who paid?</label>
           <select
-            className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+            className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             value={payer}
             onChange={(e) => setPayer(e.target.value)}
           >
@@ -1071,7 +1122,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         </div>
 
         {/* Involved Members */}
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Who is involved?</label>
           <div className="space-y-2">
             {trip.members.map(m => (
@@ -1091,7 +1142,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         </div>
 
         {/* Split Options */}
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
           <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">How to split?</label>
 
           <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-4">
