@@ -510,6 +510,7 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('general');
   const [payer, setPayer] = useState(user.uid);
+  const [involvedMembers, setInvolvedMembers] = useState<string[]>(trip.members);
   const [splitType, setSplitType] = useState<'equal' | 'exact' | 'percent'>('equal');
   
   // Custom splits state
@@ -517,6 +518,14 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
   const [percentSplits, setPercentSplits] = useState<Record<string, string>>({});
 
   const isSubmitting = false;
+
+  const toggleMemberInvolvement = (memberId: string) => {
+    setInvolvedMembers(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(m => m !== memberId) 
+        : [...prev, memberId]
+    );
+  };
 
   const handleSave = async () => {
     const numAmount = parseFloat(amount);
@@ -528,15 +537,19 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
       alert('Please enter a description');
       return;
     }
+    if (involvedMembers.length === 0) {
+      alert('Please select at least one involved member');
+      return;
+    }
 
     const splits: Record<string, number> = {};
     
     if (splitType === 'equal') {
-      const splitAmount = numAmount / trip.members.length;
-      trip.members.forEach(m => splits[m] = splitAmount);
+      const splitAmount = numAmount / involvedMembers.length;
+      involvedMembers.forEach(m => splits[m] = splitAmount);
     } else if (splitType === 'exact') {
       let total = 0;
-      trip.members.forEach(m => {
+      involvedMembers.forEach(m => {
         const val = parseFloat(exactSplits[m] || '0');
         splits[m] = val;
         total += val;
@@ -547,7 +560,7 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
       }
     } else if (splitType === 'percent') {
       let totalPct = 0;
-      trip.members.forEach(m => {
+      involvedMembers.forEach(m => {
         const pct = parseFloat(percentSplits[m] || '0');
         splits[m] = (pct / 100) * numAmount;
         totalPct += pct;
@@ -638,6 +651,26 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
           </select>
         </div>
 
+        {/* Involved Members */}
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Who is involved?</label>
+          <div className="space-y-2">
+            {trip.members.map(m => (
+              <label key={m} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                  checked={involvedMembers.includes(m)}
+                  onChange={() => toggleMemberInvolvement(m)}
+                />
+                <span className="text-sm font-medium text-gray-700 select-none">
+                  {trip.memberNames[m]} {m === user.uid && '(You)'}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         {/* Split Options */}
         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">How to split?</label>
@@ -665,10 +698,10 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
 
           {splitType === 'equal' && (
             <p className="text-sm text-gray-500 text-center py-2">
-              Split equally among {trip.members.length} people.
-              {amount && !isNaN(parseFloat(amount)) && (
+              Split equally among {involvedMembers.length} people.
+              {amount && !isNaN(parseFloat(amount)) && involvedMembers.length > 0 && (
                 <span className="block font-medium text-gray-900 mt-1">
-                  ${(parseFloat(amount) / trip.members.length).toFixed(2)} / person
+                  ${(parseFloat(amount) / involvedMembers.length).toFixed(2)} / person
                 </span>
               )}
             </p>
@@ -676,7 +709,7 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
 
           {splitType === 'exact' && (
             <div className="space-y-2">
-              {trip.members.map(m => (
+              {involvedMembers.map(m => (
                 <div key={m} className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">{trip.memberNames[m]}</span>
                   <div className="relative w-24">
@@ -696,7 +729,7 @@ function AddExpenseTab({ trip, user, onAdded }: { trip: Trip, user: User, onAdde
 
           {splitType === 'percent' && (
             <div className="space-y-2">
-              {trip.members.map(m => (
+              {involvedMembers.map(m => (
                 <div key={m} className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-700">{trip.memberNames[m]}</span>
                   <div className="relative w-24">
