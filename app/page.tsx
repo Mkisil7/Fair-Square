@@ -37,7 +37,8 @@ import {
   UserCircle,
   ChevronDown,
   ChevronUp,
-  Calendar
+  Calendar,
+  Square
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -84,6 +85,13 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   'AUD': 'A$',
   'JPY': '¥'
 };
+
+const LogoBanner = () => (
+  <div className="flex items-center justify-center gap-1.5 py-3 w-full bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800/50 z-40 sticky top-0 mt-safe-pt">
+    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg">fair &</span>
+    <Square className="w-4 h-4 text-indigo-600 dark:text-indigo-400 fill-indigo-600/20 dark:fill-indigo-400/20 stroke-[3]" />
+  </div>
+);
 
 // --- Main App Component ---
 export default function App() {
@@ -153,7 +161,15 @@ export default function App() {
   }, []);
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center dark:bg-black dark:text-white">Loading...</div>;
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center dark:bg-black w-full h-full">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <span className="font-extrabold tracking-tighter text-gray-900 dark:text-white text-3xl">fair &</span>
+          <Square className="w-8 h-8 text-indigo-600 dark:text-indigo-400 fill-indigo-600/20 dark:fill-indigo-400/20 stroke-[3] animate-pulse" />
+        </div>
+        <p className="text-gray-400 text-sm font-medium tracking-widest uppercase">Loading...</p>
+      </div>
+    );
   }
 
   if (!user) {
@@ -192,6 +208,9 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-full w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100 relative">
+
+      {/* Global Brand Logo Banner */}
+      <LogoBanner />
 
       {/* Toast Notifications */}
       {notifications.length > 0 && (
@@ -284,7 +303,10 @@ function LoginScreen() {
       <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mb-8 shadow-lg transform rotate-12">
         <Wallet className="w-10 h-10 text-white -rotate-12" />
       </div>
-      <h1 className="text-4xl font-extrabold text-gray-900 mb-2 tracking-tight">Fair & Square</h1>
+      <div className="flex items-center justify-center gap-2 mb-2">
+        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tighter">fair &</h1>
+        <Square className="w-10 h-10 text-indigo-600 fill-indigo-600/20 stroke-[3]" />
+      </div>
       <p className="text-gray-500 mb-12 text-center text-lg">Split trip expenses with friends, seamlessly.</p>
 
       <button
