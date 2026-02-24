@@ -44,7 +44,7 @@ If any value cannot be found, use null. Ensure numbers are represented as floats
 `;
 
         // Strip the data URL prefix if it exists before sending to Gemini
-        const base64Data = imageBase64.replace(/^data:image\/(png|jpeg|webp);base64,/, '');
+        const base64Data = imageBase64.replace(/^data:image\/[a-zA-Z0-9.+]+;base64,/, '');
 
         const imageParts = [
             {
