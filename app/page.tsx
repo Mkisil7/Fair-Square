@@ -957,7 +957,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                           onClick={() => { setSettleUpDebt(debt); setSettleAmount(debt.amount.toFixed(2)); }}
                           className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors"
                         >
-                          Pay
+                          Mark as Paid
                         </button>
                       )}
                     </div>
@@ -1149,7 +1149,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
               onClick={executeSettleUp}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg py-4 rounded-2xl shadow-lg transition-colors"
             >
-              Confirm Payment
+              Record Payment
             </button>
           </div>
         </div>
@@ -1222,7 +1222,7 @@ function FriendsTab({ trip, user, balances, debts, handleShare, onPay }: any) {
                         onClick={() => onPay(debt)}
                         className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors w-full sm:w-auto text-center"
                       >
-                        Pay ${debt.amount.toFixed(2)}
+                        Mark as Paid
                       </button>
                     </div>
                   )}
