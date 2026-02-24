@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
 import {
@@ -669,6 +669,7 @@ function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
 function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { user: User, trip: Trip, onBack: () => void, tab?: 'dashboard' | 'add' | 'edit' | 'friends' | 'settings', onFinishAdd?: () => void }) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'edit' | 'friends' | 'settings'>(tab);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [receipts, setReceipts] = useState<any[]>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(trip.name);
@@ -685,14 +686,19 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
     setActiveTab(tab);
   }, [tab]);
 
-  // Listen to expenses for this trip
+  // Listen to expenses and receipts for this trip
   useEffect(() => {
-    const q = query(
+    const qExpenses = query(
       collection(db, 'trips', trip.id, 'expenses'),
       orderBy('timestamp', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const qReceipts = query(
+      collection(db, 'groups', trip.id, 'receipts'),
+      orderBy('timestamp', 'desc')
+    );
+
+    const unsubscribeExpenses = onSnapshot(qExpenses, (snapshot) => {
       const exps: Expense[] = [];
       snapshot.forEach((doc) => {
         exps.push({ id: doc.id, ...doc.data() } as Expense);
@@ -700,8 +706,32 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
       setExpenses(exps);
     });
 
-    return () => unsubscribe();
+    const unsubscribeReceipts = onSnapshot(qReceipts, (snapshot) => {
+      const recs: any[] = [];
+      snapshot.forEach((doc) => {
+        recs.push({ id: doc.id, ...doc.data() });
+      });
+      setReceipts(recs);
+    });
+
+    return () => {
+      unsubscribeExpenses();
+      unsubscribeReceipts();
+    };
   }, [trip.id]);
+
+  // Combine feeds and sort descending
+  const unifiedFeed = useMemo(() => {
+    const combined = [
+      ...expenses.map(exp => ({ ...exp, _type: 'expense' as const })),
+      ...receipts.map(rec => ({ ...rec, _type: 'receipt' as const }))
+    ];
+    return combined.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis() || 0;
+      const timeB = b.timestamp?.toMillis() || 0;
+      return timeB - timeA;
+    });
+  }, [expenses, receipts]);
 
   const executeSettleUp = async () => {
     if (!settleUpDebt || !settleAmount) return;
@@ -764,10 +794,11 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
     }
   };
 
-  // Calculate balances
+  // Calculate balances (merging expenses + receipts)
   const balances: Record<string, number> = {};
   trip.members.forEach(m => balances[m] = 0);
 
+  // Parse Manual Expenses
   expenses.forEach(exp => {
     // Payer gets positive balance (owed to them)
     if (balances[exp.payer] !== undefined) {
@@ -777,6 +808,27 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
     Object.entries(exp.splits || {}).forEach(([userId, amountOwed]) => {
       if (balances[userId] !== undefined) {
         balances[userId] -= amountOwed;
+      }
+    });
+  });
+
+  // Parse Scanned Receipts
+  receipts.forEach(rec => {
+    const { paidBy, userOwedBreakdown } = rec;
+    if (!userOwedBreakdown || !paidBy) return;
+
+    if (balances[paidBy] !== undefined) {
+      // Add up all money owed to the payer
+      const totalOwedToPayer = Object.entries(userOwedBreakdown)
+        .filter(([id]) => id !== paidBy)
+        .reduce((sum, [_, amt]) => sum + Number(amt), 0);
+      balances[paidBy] += totalOwedToPayer;
+    }
+
+    // Deduct what everyone owes
+    Object.entries(userOwedBreakdown).forEach(([userId, amountOwed]) => {
+      if (userId !== paidBy && balances[userId] !== undefined && Number(amountOwed) > 0) {
+        balances[userId] -= Number(amountOwed);
       }
     });
   });
@@ -1058,63 +1110,102 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
               )}
             </div>
 
-            {/* Recent Expenses */}
+            {/* Recent Expenses & Receipts */}
             <div>
-              <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">Recent Expenses</h3>
-              {expenses.length === 0 ? (
+              <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">Recent Activity</h3>
+              {unifiedFeed.length === 0 ? (
                 <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-800">
                   <Receipt className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                  <p className="text-gray-500 dark:text-gray-400">No expenses yet.</p>
+                  <p className="text-gray-500 dark:text-gray-400">No expenses or receipts yet.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {expenses.map(exp => (
-                    <div key={exp.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xl">
-                          {exp.category === 'food' ? '🍔' : exp.category === 'transport' ? '🚕' : exp.category === 'lodging' ? '🏨' : '💸'}
+                  {unifiedFeed.map(item => {
+                    if (item._type === 'expense') {
+                      const exp = item as Expense;
+                      return (
+                        <div key={exp.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xl">
+                              {exp.category === 'food' ? '🍔' : exp.category === 'transport' ? '🚕' : exp.category === 'lodging' ? '🏨' : '💸'}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900 dark:text-white">{exp.description}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {trip.memberNames[exp.payer]} paid • {exp.timestamp ? format(exp.timestamp.toDate(), 'MMM d') : 'Just now'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-bold text-gray-900 dark:text-white">
+                              {exp.originalCurrency && exp.originalCurrency !== 'USD' ? (
+                                <span className="text-xs text-gray-400 mr-1 font-normal" title={`$${exp.amount.toFixed(2)} USD`}>
+                                  {CURRENCY_SYMBOLS[exp.originalCurrency]}{exp.originalAmount?.toFixed(2)}
+                                </span>
+                              ) : null}
+                              ${exp.amount.toFixed(2)}
+                            </p>
+                            {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
+                              exp.category === 'settlement' ? (
+                                <p className="text-xs text-emerald-500 dark:text-emerald-400 font-medium">You received ${exp.splits[user.uid].toFixed(2)}</p>
+                              ) : myBalance < -0.01 ? (
+                                <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
+                              ) : (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Your share ${exp.splits[user.uid].toFixed(2)}</p>
+                              )
+                            )}
+                          </div>
+                          {(exp.createdBy === user.uid || (!exp.createdBy && exp.payer === user.uid)) && (
+                            <div className="pl-4 ml-4 border-l border-gray-100 dark:border-gray-800 flex items-center">
+                              <button
+                                onClick={() => {
+                                  setEditingExpense(exp);
+                                  setActiveTab('edit');
+                                }}
+                                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
+                              >
+                                <Pencil className="w-5 h-5" />
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{exp.description}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {trip.memberNames[exp.payer]} paid • {exp.timestamp ? format(exp.timestamp.toDate(), 'MMM d') : 'Just now'}
-                          </p>
+                      );
+                    } else {
+                      // It's a receipt
+                      const rec = item;
+                      const userOwed = rec.userOwedBreakdown?.[user.uid] || 0;
+                      return (
+                        <div key={`receipt-${rec.id}`} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center gap-4 transition-colors">
+                          <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0">
+                            <Receipt className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start mb-0.5">
+                              <p className="font-semibold text-gray-900 dark:text-white truncate pr-2">
+                                Scanned Receipt
+                              </p>
+                              <p className="font-bold text-gray-900 dark:text-white shrink-0">
+                                ${rec.totals?.grandTotal?.toFixed(2) || '0.00'}
+                              </p>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                              <p className="text-gray-500 dark:text-gray-400 truncate">
+                                {trip.memberNames[rec.paidBy]} paid • {rec.items?.length || 0} item{rec.items?.length !== 1 && 's'}
+                              </p>
+                              {userOwed > 0 && rec.paidBy !== user.uid ? (
+                                <span className="text-rose-500 dark:text-rose-400 font-medium">You owe ${userOwed.toFixed(2)}</span>
+                              ) : rec.paidBy === user.uid ? (
+                                <span className="text-emerald-500 dark:text-emerald-400 font-medium">You paid</span>
+                              ) : null}
+                            </div>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                              {rec.timestamp ? format(rec.timestamp.toDate(), "MMM d, h:mm a") : 'Just now'}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-gray-900 dark:text-white">
-                          {exp.originalCurrency && exp.originalCurrency !== 'USD' ? (
-                            <span className="text-xs text-gray-400 mr-1 font-normal" title={`$${exp.amount.toFixed(2)} USD`}>
-                              {CURRENCY_SYMBOLS[exp.originalCurrency]}{exp.originalAmount?.toFixed(2)}
-                            </span>
-                          ) : null}
-                          ${exp.amount.toFixed(2)}
-                        </p>
-                        {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
-                          exp.category === 'settlement' ? (
-                            <p className="text-xs text-emerald-500 dark:text-emerald-400 font-medium">You received ${exp.splits[user.uid].toFixed(2)}</p>
-                          ) : myBalance < -0.01 ? (
-                            <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
-                          ) : (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Your share ${exp.splits[user.uid].toFixed(2)}</p>
-                          )
-                        )}
-                      </div>
-                      {(exp.createdBy === user.uid || (!exp.createdBy && exp.payer === user.uid)) && (
-                        <div className="pl-4 ml-4 border-l border-gray-100 dark:border-gray-800 flex items-center">
-                          <button
-                            onClick={() => {
-                              setEditingExpense(exp);
-                              setActiveTab('edit');
-                            }}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
-                          >
-                            <Pencil className="w-5 h-5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                      );
+                    }
+                  })}
                 </div>
               )}
             </div>
