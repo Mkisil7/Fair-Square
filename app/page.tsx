@@ -1122,7 +1122,10 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
           <ExpenseFormTab
             trip={trip}
             user={user}
-            onAdded={() => setActiveTab('dashboard')}
+            onAdded={() => {
+              setActiveTab('dashboard');
+              onFinishAdd?.();
+            }}
           />
         )}
 
@@ -1134,6 +1137,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
             onAdded={() => {
               setEditingExpense(null);
               setActiveTab('dashboard');
+              onFinishAdd?.();
             }}
           />
         )}
@@ -1506,7 +1510,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
 
   return (
     <div className="p-6 animate-in fade-in slide-in-from-bottom-4">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
 
       <div className="space-y-5">
         {/* Amount & Currency */}
