@@ -1290,9 +1290,25 @@ function FriendsTab({ trip, user, balances, debts, handleShare, onPay }: any) {
                     <p className="font-medium text-gray-900 dark:text-white">
                       {trip.memberNames[memberId]} {memberId === user.uid && '(You)'}
                     </p>
-                    <p className={`text-sm font-medium ${balances[memberId] > 0 ? 'text-emerald-500 dark:text-emerald-400' : balances[memberId] < 0 ? 'text-rose-500 dark:text-rose-400' : 'text-gray-400'}`}>
-                      {balances[memberId] > 0 ? `Gets back $${balances[memberId].toFixed(2)}` : balances[memberId] < 0 ? `Owes $${Math.abs(balances[memberId]).toFixed(2)}` : 'Settled up'}
-                    </p>
+                    <div className="text-sm font-medium">
+                      {(() => {
+                        const bal = balances[memberId] || 0;
+                        if (Math.abs(bal) < 0.01) {
+                          return <span className="text-gray-500 dark:text-gray-400">🎉 Settled up</span>;
+                        } else if (bal > 0) {
+                          return <span className="text-emerald-500 dark:text-emerald-400">Gets back ${bal.toFixed(2)}</span>;
+                        } else {
+                          // Find who they owe from the calculated debts array
+                          const userDebts = debts.filter((d: any) => d.from === memberId);
+                          let oweText = `Owes $${Math.abs(bal).toFixed(2)} total`;
+                          if (userDebts.length === 1) {
+                            const creditorName = trip.memberNames[userDebts[0].to] || 'someone';
+                            oweText = `Owes ${creditorName} $${Math.abs(bal).toFixed(2)}`;
+                          }
+                          return <span className="text-rose-500 dark:text-rose-400">{oweText}</span>;
+                        }
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>
