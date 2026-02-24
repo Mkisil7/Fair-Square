@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
 import {
@@ -42,6 +42,7 @@ import {
   Camera
 } from 'lucide-react';
 import { format } from 'date-fns';
+import imageCompression from 'browser-image-compression';
 
 // --- Types ---
 type Trip = {
@@ -1405,6 +1406,11 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   const [category, setCategory] = useState(initialExpense ? initialExpense.category : 'general');
   const [payer, setPayer] = useState(initialExpense ? initialExpense.payer : user.uid);
 
+  // Scanning State
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanPreview, setScanPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Custom splits setup based on initial data
   const initialInvolved = initialExpense
     ? Object.keys(initialExpense.splits)
@@ -1427,6 +1433,46 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   const [percentSplits, setPercentSplits] = useState<Record<string, string>>({});
 
   const isSubmitting = false;
+
+  const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    setScanPreview(URL.createObjectURL(file));
+
+    try {
+      // 1. Compress the Image
+      const options = {
+        maxSizeMB: 1.5,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, options);
+
+      // 2. Convert to Base64
+      const reader = new FileReader();
+      reader.readAsDataURL(compressedFile);
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+
+        // 3. Send to API Endpoint (Mock for now until API is built)
+        console.log("Sending compressed payload length:", base64data.length);
+
+        // Simulating API latency
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        alert("Receipt scanned! (API integration pending)");
+        setIsScanning(false);
+        setScanPreview(null);
+      };
+    } catch (error) {
+      console.error("Error scanning receipt:", error);
+      alert("Failed to process receipt image.");
+      setIsScanning(false);
+      setScanPreview(null);
+    }
+  };
 
   const toggleMemberInvolvement = (memberId: string) => {
     setInvolvedMembers(prev =>
@@ -1514,12 +1560,63 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
         {!initialExpense && (
-          <button type="button" className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
-            <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
-            <span>Scan Receipt</span>
-          </button>
+          <>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleScanReceipt}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isScanning}
+              className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
+            >
+              <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
+              <span>{isScanning ? 'Scanning...' : 'Scan Receipt'}</span>
+            </button>
+          </>
         )}
       </div>
+
+      {/* Camera Scan Preview Area */}
+      {(isScanning || scanPreview) && (
+        <div className="mb-6 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl flex items-center gap-4 animate-in fade-in zoom-in-95">
+          {scanPreview ? (
+            <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow-sm">
+              <img src={scanPreview} alt="Receipt preview" className="w-full h-full object-cover" />
+              {isScanning && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+              <Camera className="w-6 h-6 text-indigo-400 animate-pulse" />
+            </div>
+          )}
+          <div className="flex-1">
+            <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+              {isScanning ? 'Processing Receipt...' : 'Receipt Captured'}
+            </h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {isScanning ? 'Extracting details using AI' : 'Ready to submit'}
+            </p>
+          </div>
+          {!isScanning && (
+            <button
+              onClick={() => setScanPreview(null)}
+              className="p-2 text-gray-400 hover:text-rose-500 rounded-full transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-5">
         {/* Amount & Currency */}
