@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import imageCompression from 'browser-image-compression';
+import AssignAndSplit, { InitialReceiptData } from '../components/AssignAndSplit';
 
 // --- Types ---
 type Trip = {
@@ -1409,6 +1410,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   // Scanning State
   const [isScanning, setIsScanning] = useState(false);
   const [scanPreview, setScanPreview] = useState<string | null>(null);
+  const [scannedReceiptData, setScannedReceiptData] = useState<InitialReceiptData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Custom splits setup based on initial data
@@ -1451,24 +1453,39 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       const compressedFile = await imageCompression(file, options);
 
       // 2. Convert to Base64
-      const reader = new FileReader();
-      reader.readAsDataURL(compressedFile);
-      reader.onloadend = async () => {
-        const base64data = reader.result as string;
+      const base64data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(compressedFile);
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
 
-        // 3. Send to API Endpoint (Mock for now until API is built)
-        console.log("Sending compressed payload length:", base64data.length);
+      // 3. Send to API Endpoint
+      const response = await fetch('/api/process-receipt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageBase64: base64data,
+          mimeType: compressedFile.type,
+        }),
+      });
 
-        // Simulating API latency
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to process receipt');
+      }
 
-        alert("Receipt scanned! (API integration pending)");
-        setIsScanning(false);
-        setScanPreview(null);
-      };
+      const extractedData = await response.json();
+      console.log('Parsed receipt data:', extractedData);
+
+      setScannedReceiptData(extractedData);
+
     } catch (error) {
       console.error("Error scanning receipt:", error);
       alert("Failed to process receipt image.");
+    } finally {
       setIsScanning(false);
       setScanPreview(null);
     }
@@ -1560,7 +1577,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
         {!initialExpense && (
-          <>
+          <div className="flex items-center gap-2">
             <input
               type="file"
               accept="image/*"
@@ -1573,12 +1590,12 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isScanning}
-              className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50 shadow-sm"
             >
               <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
-              <span>{isScanning ? 'Scanning...' : 'Scan Receipt'}</span>
+              <span>{isScanning ? 'Processing...' : 'Scan Receipt'}</span>
             </button>
-          </>
+          </div>
         )}
       </div>
 

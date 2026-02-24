@@ -37,19 +37,24 @@ export interface AssignAndSplitProps {
     uploadedBy: string;
     paidBy: string;
     onSave?: (data: { items: ReceiptItem[]; userTotals: Record<string, number>; subtotal: number; tax: number; tip: number; total: number }) => void;
+    onCancel?: () => void;
+    onSuccess?: () => void;
 }
 
-export default function AssignAndSplit({ initialReceiptData, users, groupId, uploadedBy, paidBy, onSave }: AssignAndSplitProps) {
+export default function AssignAndSplit({ initialReceiptData, users, groupId, uploadedBy, paidBy, onSave, onCancel, onSuccess }: AssignAndSplitProps) {
     const router = useRouter();
     const { saveReceipt, isSaving, isSuccess } = useSaveReceipt();
 
     useEffect(() => {
         if (isSuccess) {
-            // Replace with your app's actual toast system if applicable
             alert('Receipt added to group!');
-            router.push(`/groups/${groupId}`);
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                router.push(`/groups/${groupId}`);
+            }
         }
-    }, [isSuccess, router, groupId]);
+    }, [isSuccess, router, groupId, onSuccess]);
     // Initialize state with an ID and assignedTo array for each item
     const [items, setItems] = useState<ReceiptItem[]>(() =>
         initialReceiptData.items.map(() => ({
@@ -180,6 +185,13 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                         </p>
                     </div>
 
+                    <button
+                        onClick={onCancel}
+                        disabled={isSaving}
+                        className="flex flex-none items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    >
+                        Cancel
+                    </button>
                     <button
                         onClick={handleSave}
                         disabled={hasUnclaimed || isSaving}
