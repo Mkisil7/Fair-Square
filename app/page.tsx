@@ -1580,6 +1580,31 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
     }
   };
 
+  if (scannedReceiptData) {
+    const formattedUsers = trip.members.map(uid => ({
+      id: uid,
+      name: trip.memberNames[uid] || 'Unknown'
+    }));
+    return (
+      <div className="absolute inset-0 bg-white dark:bg-black z-20 overflow-y-auto">
+        <AssignAndSplit
+          initialReceiptData={scannedReceiptData}
+          users={formattedUsers}
+          groupId={trip.id}
+          uploadedBy={user.uid}
+          paidBy={user.uid}
+          onSuccess={() => {
+            setScannedReceiptData(null);
+            onAdded();
+          }}
+          onCancel={() => setScannedReceiptData(null)}
+        />
+      </div>
+    );
+  }
+
+  console.log('Current render state:', scannedReceiptData);
+
   return (
     <div className="p-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center justify-between mb-6">
