@@ -1088,7 +1088,11 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                           ${exp.amount.toFixed(2)}
                         </p>
                         {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
-                          <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
+                          exp.category === 'settlement' ? (
+                            <p className="text-xs text-emerald-500 dark:text-emerald-400 font-medium">You received ${exp.splits[user.uid].toFixed(2)}</p>
+                          ) : (
+                            <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
+                          )
                         )}
                       </div>
                       {(exp.createdBy === user.uid || (!exp.createdBy && exp.payer === user.uid)) && (
