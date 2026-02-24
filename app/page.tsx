@@ -1090,8 +1090,10 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                         {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
                           exp.category === 'settlement' ? (
                             <p className="text-xs text-emerald-500 dark:text-emerald-400 font-medium">You received ${exp.splits[user.uid].toFixed(2)}</p>
-                          ) : (
+                          ) : myBalance < -0.01 ? (
                             <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
+                          ) : (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Your share ${exp.splits[user.uid].toFixed(2)}</p>
                           )
                         )}
                       </div>
