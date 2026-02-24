@@ -38,7 +38,8 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
-  Square
+  Square,
+  Camera
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -1510,7 +1511,15 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
 
   return (
     <div className="p-6 animate-in fade-in slide-in-from-bottom-4">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
+        {!initialExpense && (
+          <button type="button" className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+            <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
+            <span>Scan Receipt</span>
+          </button>
+        )}
+      </div>
 
       <div className="space-y-5">
         {/* Amount & Currency */}
