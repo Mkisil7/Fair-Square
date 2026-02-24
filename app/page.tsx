@@ -88,8 +88,11 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 
 const LogoBanner = () => (
   <div className="flex items-center justify-center gap-1.5 py-3 w-full bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800/50 z-40 sticky top-0 mt-safe-pt">
-    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg">fair &</span>
-    <Square className="w-4 h-4 text-indigo-600 dark:text-indigo-400 fill-indigo-600/20 dark:fill-indigo-400/20 stroke-[3]" />
+    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg">Fair</span>
+    <div className="w-5 h-5 border-[2.5px] border-indigo-600 dark:border-indigo-400 rounded flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-[10px] leading-none mb-0.5">
+      &amp;
+    </div>
+    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg">Square</span>
   </div>
 );
 
@@ -164,8 +167,11 @@ export default function App() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center dark:bg-black w-full h-full">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <span className="font-extrabold tracking-tighter text-gray-900 dark:text-white text-3xl">fair &</span>
-          <Square className="w-8 h-8 text-indigo-600 dark:text-indigo-400 fill-indigo-600/20 dark:fill-indigo-400/20 stroke-[3] animate-pulse" />
+          <span className="font-extrabold tracking-tighter text-gray-900 dark:text-white text-3xl">Fair</span>
+          <div className="w-8 h-8 border-4 border-indigo-600 dark:border-indigo-400 rounded flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg leading-none animate-pulse mb-0.5">
+            &amp;
+          </div>
+          <span className="font-extrabold tracking-tighter text-gray-900 dark:text-white text-3xl">Square</span>
         </div>
         <p className="text-gray-400 text-sm font-medium tracking-widest uppercase">Loading...</p>
       </div>
@@ -304,8 +310,11 @@ function LoginScreen() {
         <Wallet className="w-10 h-10 text-white -rotate-12" />
       </div>
       <div className="flex items-center justify-center gap-2 mb-2">
-        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tighter">fair &</h1>
-        <Square className="w-10 h-10 text-indigo-600 fill-indigo-600/20 stroke-[3]" />
+        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tighter">Fair</h1>
+        <div className="w-12 h-12 border-[5px] border-indigo-600 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-3xl leading-none mb-1">
+          &amp;
+        </div>
+        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tighter">Square</h1>
       </div>
       <p className="text-gray-500 mb-12 text-center text-lg">Split trip expenses with friends, seamlessly.</p>
 
