@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { AlertCircle, Save, User as UserIcon, Plus, Trash2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useSaveReceipt } from '@/hooks/useSaveReceipt';
 
 export function cn(...inputs: (string | undefined | null | false)[]) {
     return twMerge(clsx(inputs));
@@ -31,10 +33,23 @@ export interface ReceiptItem {
 export interface AssignAndSplitProps {
     initialReceiptData: InitialReceiptData;
     users: User[];
+    groupId: string;
+    uploadedBy: string;
+    paidBy: string;
     onSave?: (data: { items: ReceiptItem[]; userTotals: Record<string, number>; subtotal: number; tax: number; tip: number; total: number }) => void;
 }
 
-export default function AssignAndSplit({ initialReceiptData, users, onSave }: AssignAndSplitProps) {
+export default function AssignAndSplit({ initialReceiptData, users, groupId, uploadedBy, paidBy, onSave }: AssignAndSplitProps) {
+    const router = useRouter();
+    const { saveReceipt, isSaving, isSuccess } = useSaveReceipt();
+
+    useEffect(() => {
+        if (isSuccess) {
+            // Replace with your app's actual toast system if applicable
+            alert('Receipt added to group!');
+            router.push(`/groups/${groupId}`);
+        }
+    }, [isSuccess, router, groupId]);
     // Initialize state with an ID and assignedTo array for each item
     const [items, setItems] = useState<ReceiptItem[]>(() =>
         initialReceiptData.items.map(() => ({
@@ -133,6 +148,25 @@ export default function AssignAndSplit({ initialReceiptData, users, onSave }: As
 
     const hasUnclaimed = unclaimedAmount > 0;
 
+    const handleSave = () => {
+        saveReceipt({
+            groupId,
+            uploadedBy,
+            paidBy,
+            totals: {
+                subtotal,
+                tax,
+                tip,
+                grandTotal: total,
+            },
+            items,
+            userOwedBreakdown: userTotals,
+        });
+
+        // Trigger the onSave callback as well if provided
+        onSave?.({ items, userTotals, subtotal, tax, tip, total });
+    };
+
     return (
         <div className="w-full max-w-4xl mx-auto p-4 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -147,17 +181,17 @@ export default function AssignAndSplit({ initialReceiptData, users, onSave }: As
                     </div>
 
                     <button
-                        onClick={() => onSave?.({ items, userTotals, subtotal, tax, tip, total })}
-                        disabled={hasUnclaimed}
+                        onClick={handleSave}
+                        disabled={hasUnclaimed || isSaving}
                         className={cn(
                             "flex flex-none items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all shadow-sm",
-                            hasUnclaimed
+                            (hasUnclaimed || isSaving)
                                 ? "bg-zinc-100 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600"
                                 : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md hover:-translate-y-0.5"
                         )}
                     >
                         <Save size={18} />
-                        Save to Group
+                        {isSaving ? 'Saving...' : 'Save to Group'}
                     </button>
                 </div>
 
