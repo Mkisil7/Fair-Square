@@ -1477,10 +1477,18 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         throw new Error(errorData.error || 'Failed to process receipt');
       }
 
-      const extractedData = await response.json();
-      console.log('Parsed receipt data:', extractedData);
+      const data = await response.json();
+      console.log('Raw API Response:', data);
 
-      setScannedReceiptData(extractedData);
+      const normalizedData = {
+        items: data.lineItems || data.items || [],
+        subtotal: data.subtotal || 0,
+        tax: data.tax || 0,
+        tip: data.tip || 0,
+        total: data.total || 0
+      };
+
+      setScannedReceiptData(normalizedData);
 
     } catch (error) {
       console.error("Error scanning receipt:", error);
