@@ -239,7 +239,7 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                     <div className="flex-1 flex items-center gap-3">
                                         <input
                                             type="text"
-                                            className="flex-1 bg-transparent border-0 font-medium text-zinc-900 dark:text-zinc-100 focus:ring-0 p-0 text-base placeholder-zinc-400"
+                                            className="flex-1 bg-transparent border-b border-transparent focus:border-indigo-500 font-medium text-zinc-900 dark:text-zinc-100 focus:ring-0 p-1 text-base placeholder-zinc-400 outline-none transition-colors"
                                             value={item.name}
                                             onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
                                             placeholder="Item name"
