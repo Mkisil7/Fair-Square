@@ -1478,8 +1478,17 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       const extractedData = await response.json();
       console.log('Parsed receipt data:', extractedData);
 
-      // TODO: Mount the AssignAndSplit component here with extractedData
-      alert('Receipt processed successfully! View console for data.');
+      if (extractedData.total) {
+        setAmount(extractedData.total.toFixed(2).toString());
+      }
+
+      const firstItem = extractedData.lineItems?.[0]?.name;
+      if (firstItem) {
+        const hasMore = extractedData.lineItems.length > 1;
+        setDescription(`Receipt: ${firstItem}${hasMore ? ' & more' : ''}`);
+      } else {
+        setDescription('Scanned Receipt');
+      }
 
     } catch (error) {
       console.error("Error scanning receipt:", error);
