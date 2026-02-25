@@ -232,9 +232,9 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-colors group"
+                                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-colors group"
                             >
-                                <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2">
                                     {/* Item Input - Name */}
                                     <input
                                         type="text"
@@ -245,9 +245,9 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                     />
 
                                     {/* Item Input - Price */}
-                                    <div className="flex justify-between items-center w-full">
+                                    <div className="flex justify-between items-center w-full mt-1">
                                         <span className="text-zinc-500 font-medium text-sm">Price:</span>
-                                        <div className="flex items-center gap-1 text-zinc-900 dark:text-zinc-100 font-semibold text-lg">
+                                        <div className="flex items-center text-zinc-900 dark:text-zinc-100 font-semibold text-lg">
                                             <span>$</span>
                                             <input
                                                 type="number"
@@ -263,11 +263,11 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                     </div>
 
                                     {/* Divider */}
-                                    <div className="h-px w-full bg-zinc-100 dark:bg-zinc-800 my-1" />
+                                    <div className="h-px w-full bg-zinc-100 dark:bg-zinc-800 my-0.5" />
 
                                     {/* Assignment Chips */}
-                                    <div className="flex items-center gap-2 flex-wrap pb-1">
-                                        <span className="text-zinc-500 font-medium text-xs uppercase tracking-wider w-full mb-1">Assigned To:</span>
+                                    <div className="flex items-center gap-2 flex-wrap pb-0.5">
+                                        <span className="text-zinc-500 font-medium text-[10px] uppercase tracking-wider w-full mb-0.5">Assigned To:</span>
                                         {users.map((user) => {
                                             const isAssigned = item.assignedTo.includes(user.id);
                                             return (
@@ -275,13 +275,13 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                                     key={user.id}
                                                     onClick={() => toggleUserAssignment(item.id, user.id)}
                                                     className={cn(
-                                                        "flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-all duration-200 select-none whitespace-nowrap",
+                                                        "flex items-center justify-center gap-1 px-3 py-1 text-xs font-semibold rounded-full border transition-all duration-200 select-none whitespace-nowrap",
                                                         isAssigned
                                                             ? "bg-indigo-100 border-indigo-200 text-indigo-700 dark:bg-indigo-900/40 dark:border-indigo-800/60 dark:text-indigo-300 shadow-sm"
                                                             : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-zinc-300"
                                                     )}
                                                 >
-                                                    <UserIcon size={12} className={cn(isAssigned && "fill-current")} />
+                                                    <UserIcon size={12} className={cn(isAssigned && "fill-current", "hidden sm:inline-block")} />
                                                     {user.name}
                                                 </button>
                                             );
