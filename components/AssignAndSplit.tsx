@@ -209,10 +209,10 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="flex flex-col gap-8">
 
-                {/* Left Column: Editable Data Grid & Assignments */}
-                <div className="col-span-1 lg:col-span-2 space-y-6">
+                {/* Left Column (Now Top): Editable Data Grid & Assignments */}
+                <div className="w-full space-y-6">
                     <div className="flex items-center justify-between">
                         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Items</h2>
                         <button
@@ -345,8 +345,8 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                     </div>
                 </div>
 
-                {/* Right Column: User Totals */}
-                <div className="col-span-1 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-950 shadow-sm overflow-hidden sticky top-28">
+                {/* Right Column (Now Bottom): User Totals */}
+                <div className="w-full border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-950 shadow-sm overflow-hidden mb-8">
                     <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 border-b border-zinc-200 dark:border-zinc-800">
                         <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Owed Amounts</h2>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Includes proportional tax & tip</p>
