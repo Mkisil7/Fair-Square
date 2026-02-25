@@ -43,6 +43,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import imageCompression from 'browser-image-compression';
+import AssignAndSplit, { InitialReceiptData } from '../components/AssignAndSplit';
+import GroupLedger from '../components/GroupLedger';
 
 // --- Types ---
 type Trip = {
@@ -675,6 +677,47 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
+  // Receipt Scanning State
+  const [scannedReceiptData, setScannedReceiptData] = useState<InitialReceiptData | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    try {
+      const options = { maxSizeMB: 1.5, maxWidthOrHeight: 1920, useWebWorker: true };
+      const compressedFile = await imageCompression(file, options);
+      const base64data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(compressedFile);
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
+
+      const response = await fetch('/api/process-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64data, mimeType: compressedFile.type }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process receipt');
+      }
+
+      const extractedData = await response.json();
+      setScannedReceiptData(extractedData);
+    } catch (error) {
+      console.error("Error scanning receipt:", error);
+      alert("Failed to process receipt image.");
+    } finally {
+      setIsScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   // Settle Up State
   const [settleUpDebt, setSettleUpDebt] = useState<any | null>(null);
   const [settleAmount, setSettleAmount] = useState<string>('');
@@ -951,173 +994,48 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
       <div className="flex-1 overflow-y-auto pb-24 relative z-10">
         {activeTab === 'dashboard' && (
-          <div className="p-6 space-y-6">
-            {/* Personalized Balance Cards */}
-            <div className="space-y-3">
-              {(() => {
-                // Filter the global debts array to only include settlements involving the current user
-                const myDebts = debts.filter(d => d.from === user.uid || d.to === user.uid);
+          scannedReceiptData ? (
+            <AssignAndSplit
+              initialReceiptData={scannedReceiptData}
+              users={trip.members.map(m => ({ id: m, name: trip.memberNames[m] || 'Unknown' }))}
+              groupId={trip.id}
+              uploadedBy={user.uid}
+              paidBy={user.uid}
+              onSave={() => setScannedReceiptData(null)}
+            />
+          ) : (
+            <div className="p-4 sm:p-6 space-y-6">
+              <div className="flex justify-between items-center bg-white dark:bg-zinc-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold tracking-tight text-gray-900 dark:text-white">Have a receipt?</h2>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">Scan it to split instantly using AI.</p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  ref={fileInputRef}
+                  onChange={handleCameraCapture}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isScanning}
+                  className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 bg-indigo-600 dark:bg-indigo-500 text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-semibold hover:bg-indigo-700 dark:hover:bg-indigo-400 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span className="text-sm sm:text-base">{isScanning ? 'Scanning...' : 'Scan Receipt'}</span>
+                </button>
+              </div>
 
-                if (myDebts.length === 0) {
-                  return (
-                    <div className="p-6 rounded-3xl text-white shadow-lg bg-indigo-500">
-                      <p className="text-white/80 text-sm font-medium mb-1">Your Balance</p>
-                      <h2 className="text-4xl font-bold tracking-tight mb-2">
-                        $0.00
-                      </h2>
-                      <p className="text-white/100 text-sm font-semibold">
-                        🎉 You are all settled up.
-                      </p>
-                    </div>
-                  );
-                }
-
-                return myDebts.map((debt, idx) => {
-                  const iOwe = debt.from === user.uid;
-                  const otherPersonId = iOwe ? debt.to : debt.from;
-                  const otherPersonName = trip.memberNames[otherPersonId] || 'Unknown';
-
-                  return (
-                    <div key={idx} className={`p-6 rounded-3xl text-white shadow-md ${iOwe ? 'bg-rose-500' : 'bg-emerald-500'}`}>
-                      <h2 className="text-3xl font-bold tracking-tight mb-1">
-                        ${debt.amount.toFixed(2)}
-                      </h2>
-                      <p className="text-white/100 text-base font-semibold mb-4">
-                        {iOwe ? `You owe ${otherPersonName}` : `${otherPersonName} owes you`}
-                      </p>
-                      {iOwe && (
-                        <button
-                          onClick={() => { setSettleUpDebt(debt); setSettleAmount(debt.amount.toFixed(2)); }}
-                          className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors"
-                        >
-                          Mark as Paid
-                        </button>
-                      )}
-                    </div>
-                  );
-                });
-              })()}
+              <GroupLedger
+                groupId={trip.id}
+                currentUserId={user.uid}
+                users={trip.members.reduce((acc, m) => ({ ...acc, [m]: { id: m, name: trip.memberNames[m] || 'Unknown' } }), {})}
+              />
             </div>
-
-            {/* Add Group Notes */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden transition-colors">
-              <button
-                onClick={() => setIsNotesExpanded(!isNotesExpanded)}
-                className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">Group Notes</h3>
-                  {trip.notes && !isNotesExpanded && (
-                    <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {!isNotesExpanded && !isEditingNotes && (
-                    <div onClick={(e) => { e.stopPropagation(); setIsNotesExpanded(true); setIsEditingNotes(true); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-full transition-colors cursor-pointer">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </div>
-                  )}
-                  {isNotesExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                </div>
-              </button>
-
-              {isNotesExpanded && (
-                <div className="p-4 pt-0 border-t border-gray-50 dark:border-gray-800/50">
-                  {isEditingNotes ? (
-                    <div className="flex flex-col gap-2 mt-4">
-                      <textarea
-                        autoFocus
-                        className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-sm"
-                        rows={3}
-                        placeholder="Add an address, itinerary link, or general notes..."
-                        value={notesValue}
-                        onChange={(e) => setNotesValue(e.target.value)}
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => { setNotesValue(trip.notes || ''); setIsEditingNotes(false); }} className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-3 py-1.5">Cancel</button>
-                        <button onClick={saveUpdatedNotes} className="text-xs font-bold bg-indigo-600 text-white px-4 py-1.5 rounded-full hover:bg-indigo-700 transition-colors">Save</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-4 group relative">
-                      <p className={`text-sm ${trip.notes ? 'text-gray-700 dark:text-gray-300 whitespace-pre-wrap' : 'text-gray-400 italic'}`}>
-                        {trip.notes || 'Add an address, itinerary link, or general notes...'}
-                      </p>
-                      {trip.notes && (
-                        <button
-                          onClick={() => setIsEditingNotes(true)}
-                          className="absolute top-0 right-0 p-1.5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm text-gray-400 hover:text-indigo-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Recent Expenses */}
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">Recent Expenses</h3>
-              {expenses.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <Receipt className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                  <p className="text-gray-500 dark:text-gray-400">No expenses yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {expenses.map(exp => (
-                    <div key={exp.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xl">
-                          {exp.category === 'food' ? '🍔' : exp.category === 'transport' ? '🚕' : exp.category === 'lodging' ? '🏨' : '💸'}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{exp.description}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {trip.memberNames[exp.payer]} paid • {exp.timestamp ? format(exp.timestamp.toDate(), 'MMM d') : 'Just now'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-gray-900 dark:text-white">
-                          {exp.originalCurrency && exp.originalCurrency !== 'USD' ? (
-                            <span className="text-xs text-gray-400 mr-1 font-normal" title={`$${exp.amount.toFixed(2)} USD`}>
-                              {CURRENCY_SYMBOLS[exp.originalCurrency]}{exp.originalAmount?.toFixed(2)}
-                            </span>
-                          ) : null}
-                          ${exp.amount.toFixed(2)}
-                        </p>
-                        {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
-                          exp.category === 'settlement' ? (
-                            <p className="text-xs text-emerald-500 dark:text-emerald-400 font-medium">You received ${exp.splits[user.uid].toFixed(2)}</p>
-                          ) : myBalance < -0.01 ? (
-                            <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
-                          ) : (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Your share ${exp.splits[user.uid].toFixed(2)}</p>
-                          )
-                        )}
-                      </div>
-                      {(exp.createdBy === user.uid || (!exp.createdBy && exp.payer === user.uid)) && (
-                        <div className="pl-4 ml-4 border-l border-gray-100 dark:border-gray-800 flex items-center">
-                          <button
-                            onClick={() => {
-                              setEditingExpense(exp);
-                              setActiveTab('edit');
-                            }}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
-                          >
-                            <Pencil className="w-5 h-5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          )
         )}
 
         {activeTab === 'add' && (
@@ -1406,11 +1324,6 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   const [category, setCategory] = useState(initialExpense ? initialExpense.category : 'general');
   const [payer, setPayer] = useState(initialExpense ? initialExpense.payer : user.uid);
 
-  // Scanning State
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanPreview, setScanPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   // Custom splits setup based on initial data
   const initialInvolved = initialExpense
     ? Object.keys(initialExpense.splits)
@@ -1433,62 +1346,6 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   const [percentSplits, setPercentSplits] = useState<Record<string, string>>({});
 
   const isSubmitting = false;
-
-  const handleScanReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsScanning(true);
-    setScanPreview(URL.createObjectURL(file));
-
-    try {
-      // 1. Compress the Image
-      const options = {
-        maxSizeMB: 1.5,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-      };
-      const compressedFile = await imageCompression(file, options);
-
-      // 2. Convert to Base64
-      const base64data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(compressedFile);
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-      });
-
-      // 3. Send to API Endpoint
-      const response = await fetch('/api/process-receipt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          imageBase64: base64data,
-          mimeType: compressedFile.type,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to process receipt');
-      }
-
-      const extractedData = await response.json();
-      console.log('Parsed receipt data:', extractedData);
-
-      // TODO: Mount the AssignAndSplit component here with extractedData
-      alert('Receipt processed successfully! View console for data.');
-
-    } catch (error) {
-      console.error("Error scanning receipt:", error);
-      alert("Failed to process receipt image.");
-    } finally {
-      setIsScanning(false);
-      setScanPreview(null);
-    }
-  };
 
   const toggleMemberInvolvement = (memberId: string) => {
     setInvolvedMembers(prev =>
@@ -1573,66 +1430,11 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
 
   return (
     <div className="p-6 animate-in fade-in slide-in-from-bottom-4">
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
-        {!initialExpense && (
-          <>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleScanReceipt}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isScanning}
-              className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
-            >
-              <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
-              <span>{isScanning ? 'Scanning...' : 'Scan Receipt'}</span>
-            </button>
-          </>
-        )}
       </div>
 
-      {/* Camera Scan Preview Area */}
-      {(isScanning || scanPreview) && (
-        <div className="mb-6 p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl flex items-center gap-4 animate-in fade-in zoom-in-95">
-          {scanPreview ? (
-            <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow-sm">
-              <img src={scanPreview} alt="Receipt preview" className="w-full h-full object-cover" />
-              {isScanning && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-16 h-16 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
-              <Camera className="w-6 h-6 text-indigo-400 animate-pulse" />
-            </div>
-          )}
-          <div className="flex-1">
-            <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-              {isScanning ? 'Processing Receipt...' : 'Receipt Captured'}
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {isScanning ? 'Extracting details using AI' : 'Ready to submit'}
-            </p>
-          </div>
-          {!isScanning && (
-            <button
-              onClick={() => setScanPreview(null)}
-              className="p-2 text-gray-400 hover:text-rose-500 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      )}
+      {/* Form Content */}
 
       <div className="space-y-5">
         {/* Amount & Currency */}
