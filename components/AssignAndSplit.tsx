@@ -234,23 +234,26 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                 transition={{ delay: index * 0.05 }}
                                 className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-colors group"
                             >
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    {/* Item Inputs */}
-                                    <div className="flex-1 flex items-center gap-3">
-                                        <input
-                                            type="text"
-                                            className="flex-1 bg-transparent border-b border-transparent focus:border-indigo-500 font-medium text-zinc-900 dark:text-zinc-100 focus:ring-0 p-1 text-base placeholder-zinc-400 outline-none transition-colors"
-                                            value={item.name}
-                                            onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
-                                            placeholder="Item name"
-                                        />
-                                        <div className="flex items-center gap-1 text-zinc-500 font-medium text-lg">
+                                <div className="flex flex-col gap-3">
+                                    {/* Item Input - Name */}
+                                    <input
+                                        type="text"
+                                        className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500 font-medium text-zinc-900 dark:text-zinc-100 focus:ring-0 pb-1 text-base placeholder-zinc-400 outline-none transition-colors"
+                                        value={item.name}
+                                        onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
+                                        placeholder="Item name"
+                                    />
+
+                                    {/* Item Input - Price */}
+                                    <div className="flex justify-between items-center w-full">
+                                        <span className="text-zinc-500 font-medium text-sm">Price:</span>
+                                        <div className="flex items-center gap-1 text-zinc-900 dark:text-zinc-100 font-semibold text-lg">
                                             <span>$</span>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 step="0.01"
-                                                className="w-20 bg-transparent border-0 font-medium text-zinc-900 dark:text-zinc-100 focus:ring-0 p-0 text-right appearance-none"
+                                                className="w-24 bg-transparent border-0 font-semibold focus:ring-0 p-0 text-right appearance-none"
                                                 value={item.price === 0 && item.name === '' ? '' : item.price}
                                                 onChange={(e) => handleItemChange(item.id, 'price', parseFloat(e.target.value) || 0)}
                                                 placeholder="0.00"
@@ -259,11 +262,12 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                         </div>
                                     </div>
 
-                                    {/* Divider on mobile, hidden on desktop */}
-                                    <div className="h-px bg-zinc-100 dark:bg-zinc-800 block sm:hidden my-1" />
+                                    {/* Divider */}
+                                    <div className="h-px w-full bg-zinc-100 dark:bg-zinc-800 my-1" />
 
                                     {/* Assignment Chips */}
-                                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap overflow-x-auto pb-1 sm:pb-0 scrollbar-hide shrink-0 sm:max-w-xs md:max-w-sm">
+                                    <div className="flex items-center gap-2 flex-wrap pb-1">
+                                        <span className="text-zinc-500 font-medium text-xs uppercase tracking-wider w-full mb-1">Assigned To:</span>
                                         {users.map((user) => {
                                             const isAssigned = item.assignedTo.includes(user.id);
                                             return (
@@ -284,10 +288,10 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                         })}
                                         <button
                                             onClick={() => removeItem(item.id)}
-                                            className="ml-auto p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            className="ml-auto flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors border border-transparent hover:border-red-200 dark:hover:border-red-900/50"
                                             aria-label="Remove item"
                                         >
-                                            <Trash2 size={16} />
+                                            <Trash2 size={14} /> Remove
                                         </button>
                                     </div>
                                 </div>
