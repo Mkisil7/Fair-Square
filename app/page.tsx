@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import imageCompression from 'browser-image-compression';
+import AssignAndSplit from '../components/AssignAndSplit';
 
 // --- Types ---
 type Trip = {
@@ -1409,6 +1410,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   // Scanning State
   const [isScanning, setIsScanning] = useState(false);
   const [scanPreview, setScanPreview] = useState<string | null>(null);
+  const [scannedReceiptData, setScannedReceiptData] = useState<any | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Custom splits setup based on initial data
@@ -1489,6 +1491,8 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       } else {
         setDescription('Scanned Receipt');
       }
+
+      setScannedReceiptData(extractedData);
 
     } catch (error) {
       console.error("Error scanning receipt:", error);
@@ -1579,6 +1583,47 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       alert('Failed to save expense');
     }
   };
+
+  console.log('Current render state:', scannedReceiptData);
+
+  if (scannedReceiptData) {
+    const defaultData = {
+      items: scannedReceiptData.lineItems?.map((item: any) => ({
+        name: item.name || 'Unknown Item',
+        price: Number(item.price) || 0
+      })) || [],
+      subtotal: Number(scannedReceiptData.subtotal) || 0,
+      tax: Number(scannedReceiptData.tax) || 0,
+      tip: Number(scannedReceiptData.tip) || 0,
+      total: Number(scannedReceiptData.total) || 0,
+    };
+
+    const tripUsers = trip.members.map(userId => ({
+      id: userId,
+      name: trip.memberNames[userId] || 'Unknown User'
+    }));
+
+    return (
+      <div className="animate-in fade-in zoom-in-95 duration-300">
+        <div className="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
+          <button
+            onClick={() => setScannedReceiptData(null)}
+            className="text-gray-500 hover:text-gray-900 dark:hover:text-white flex items-center gap-1 font-medium bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full text-sm"
+          >
+            <ChevronLeft size={16} /> Discard Receipt
+          </button>
+        </div>
+        <AssignAndSplit
+          initialReceiptData={defaultData}
+          users={tripUsers}
+          groupId={trip.id}
+          uploadedBy={user.uid}
+          paidBy={payer}
+          onSave={() => onAdded()} // This runs after AssignAndSplit saves to firebase successfully
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 animate-in fade-in slide-in-from-bottom-4">
