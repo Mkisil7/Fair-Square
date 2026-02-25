@@ -704,9 +704,6 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
         exps.push({ id: doc.id, ...doc.data() } as Expense);
       });
       setExpenses(exps);
-    }, (error) => {
-      console.warn('Error fetching expenses (may not exist yet):', error);
-      setExpenses([]);
     });
 
     const unsubscribeReceipts = onSnapshot(qReceipts, (snapshot) => {
@@ -715,9 +712,6 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
         recs.push({ id: doc.id, ...doc.data() });
       });
       setReceipts(recs);
-    }, (error) => {
-      console.warn('Error fetching receipts (group collection may not exist yet or permission denied):', error);
-      setReceipts([]);
     });
 
     return () => {
