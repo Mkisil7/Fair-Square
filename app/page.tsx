@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
 import {
@@ -39,7 +39,8 @@ import {
   ChevronUp,
   Calendar,
   Square,
-  Camera
+  Camera,
+  Filter
 } from 'lucide-react';
 import { format } from 'date-fns';
 import imageCompression from 'browser-image-compression';
@@ -676,6 +677,15 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
+  // Filter & Sort State
+  const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'amount_desc' | 'amount_asc' | 'az'>('recent');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterUsers, setFilterUsers] = useState<string[]>([]);
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'settled' | 'unsettled'>('all');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
+
   // Settle Up State
   const [settleUpDebt, setSettleUpDebt] = useState<any | null>(null);
   const [settleAmount, setSettleAmount] = useState<string>('');
@@ -838,6 +848,64 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   };
 
   const debts = calculateDebts();
+
+  // Process expenses for sorting and filtering
+  const processedExpenses = useMemo(() => {
+    let result = [...expenses];
+
+    // 1. Filter by Users
+    if (filterUsers.length > 0) {
+      result = result.filter(exp => {
+        const involvedUsers = [exp.payer, ...Object.keys(exp.splits || {})];
+        return filterUsers.some(uid => involvedUsers.includes(uid));
+      });
+    }
+
+    // 2. Filter by Category
+    if (filterCategory !== 'all') {
+      result = result.filter(exp => exp.category === filterCategory);
+    }
+
+    // 3. Filter by Status (Settled/Unsettled) - This is a simple approximation
+    // A true settlement check would require a more complex ledger analysis per expense
+    if (filterStatus !== 'all') {
+      if (filterStatus === 'settled') {
+        result = result.filter(exp => exp.category === 'settlement');
+      } else {
+        result = result.filter(exp => exp.category !== 'settlement');
+      }
+    }
+
+    // 4. Filter by Date
+    if (filterStartDate) {
+      const start = new Date(filterStartDate).getTime();
+      result = result.filter(exp => exp.timestamp && exp.timestamp.toMillis() >= start);
+    }
+    if (filterEndDate) {
+      // Add 1 day to include the entire end date selected
+      const end = new Date(filterEndDate).getTime() + (24 * 60 * 60 * 1000);
+      result = result.filter(exp => exp.timestamp && exp.timestamp.toMillis() <= end);
+    }
+
+    // 5. Apply Sorting
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest':
+          return (a.timestamp?.toMillis() || 0) - (b.timestamp?.toMillis() || 0);
+        case 'amount_desc':
+          return b.amount - a.amount;
+        case 'amount_asc':
+          return a.amount - b.amount;
+        case 'az':
+          return a.description.localeCompare(b.description);
+        case 'recent':
+        default:
+          return (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0);
+      }
+    });
+
+    return result;
+  }, [expenses, filterUsers, filterCategory, filterStatus, filterStartDate, filterEndDate, sortBy]);
 
   const handleShare = () => {
     if (navigator.share) {
@@ -1058,17 +1126,142 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
               )}
             </div>
 
-            {/* Recent Expenses */}
+            {/* Recent Expenses & Filters */}
             <div>
-              <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-lg">Recent Expenses</h3>
-              {expenses.length === 0 ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <h3 className="font-bold text-gray-900 dark:text-white text-lg m-0">Recent Expenses</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm font-medium text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+                  >
+                    <option value="recent">Most Recent</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="amount_desc">Amount: High to Low</option>
+                    <option value="amount_asc">Amount: Low to High</option>
+                    <option value="az">A-Z</option>
+                  </select>
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${showFilters ? 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                  >
+                    <Filter size={14} />
+                    Filters {showFilters ? '-' : '+'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Collapsible Filters Panel */}
+              {showFilters && (
+                <div className="mb-6 p-4 sm:p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-2xl animate-in slide-in-from-top-4 duration-300 fade-in">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">Filter Expenses</h4>
+                    <button
+                      onClick={() => {
+                        setFilterUsers([]);
+                        setFilterCategory('all');
+                        setFilterStatus('all');
+                        setFilterStartDate('');
+                        setFilterEndDate('');
+                      }}
+                      className="text-xs font-semibold text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 uppercase tracking-wider transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+
+                  <div className="space-y-5">
+                    {/* By User(s) */}
+                    <div>
+                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">By User(s)</p>
+                      <div className="flex flex-wrap gap-2">
+                        {trip.members.map(memberId => {
+                          const isActive = filterUsers.includes(memberId);
+                          return (
+                            <button
+                              key={memberId}
+                              onClick={() => {
+                                setFilterUsers(prev =>
+                                  isActive ? prev.filter(id => id !== memberId) : [...prev, memberId]
+                                );
+                              }}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${isActive ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300' : 'bg-zinc-50 dark:bg-black/20 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                            >
+                              <div className={`w-3 h-3 rounded shadow-sm border ${isActive ? 'bg-indigo-500 border-indigo-600 dark:border-indigo-400 flex items-center justify-center' : 'bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700'}`}>
+                                {isActive && <Check size={10} strokeWidth={3} className="text-white" />}
+                              </div>
+                              {trip.memberNames[memberId]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* By Category */}
+                    <div>
+                      <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">By Category</p>
+                      <div className="flex flex-wrap gap-2">
+                        {['all', 'food', 'transport', 'lodging', 'general', 'settlement'].map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setFilterCategory(cat)}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${filterCategory === cat ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-500 dark:border-indigo-500 text-indigo-700 dark:text-indigo-300' : 'bg-transparent border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                          >
+                            {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-5">
+                      {/* By Status */}
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">By Status</p>
+                        <div className="flex bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl w-full">
+                          {['all', 'unsettled', 'settled'].map(status => (
+                            <button
+                              key={status}
+                              onClick={() => setFilterStatus(status as any)}
+                              className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all capitalize ${filterStatus === status ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm border border-black/5 dark:border-white/5' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'}`}
+                            >
+                              {status}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* By Date Range */}
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wide">By Date</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={filterStartDate}
+                            onChange={(e) => setFilterStartDate(e.target.value)}
+                            className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500 text-sm p-1 text-zinc-900 dark:text-zinc-100 appearance-none outline-none"
+                          />
+                          <span className="text-zinc-400 text-xs">to</span>
+                          <input
+                            type="date"
+                            value={filterEndDate}
+                            onChange={(e) => setFilterEndDate(e.target.value)}
+                            className="w-full bg-transparent border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500 text-sm p-1 text-zinc-900 dark:text-zinc-100 appearance-none outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {processedExpenses.length === 0 ? (
                 <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-800">
                   <Receipt className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                  <p className="text-gray-500 dark:text-gray-400">No expenses yet.</p>
+                  <p className="text-gray-500 dark:text-gray-400">No expenses found.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {expenses.map(exp => (
+                  {processedExpenses.map((exp: Expense) => (
                     <div key={exp.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between transition-colors">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xl">
