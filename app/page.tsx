@@ -40,7 +40,8 @@ import {
   Calendar,
   Square,
   Camera,
-  Filter
+  Filter,
+  Image as ImageIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 import imageCompression from 'browser-image-compression';
@@ -1604,7 +1605,8 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   const [isScanning, setIsScanning] = useState(false);
   const [scanPreview, setScanPreview] = useState<string | null>(null);
   const [scannedReceiptData, setScannedReceiptData] = useState<any | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Custom splits setup based on initial data
   const initialInvolved = initialExpense
@@ -1823,25 +1825,45 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
         {!initialExpense && (
-          <>
+          <div className="flex items-center gap-2">
             <input
               type="file"
               accept="image/*"
               capture="environment"
               className="hidden"
-              ref={fileInputRef}
+              ref={cameraInputRef}
               onChange={handleScanReceipt}
             />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isScanning}
-              className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
-            >
-              <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
-              <span>{isScanning ? 'Scanning...' : 'Scan Receipt'}</span>
-            </button>
-          </>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={galleryInputRef}
+              onChange={handleScanReceipt}
+            />
+
+            <div className="flex bg-indigo-50 dark:bg-indigo-900/30 rounded-xl overflow-hidden border border-indigo-100 dark:border-indigo-800/50">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={isScanning}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50 border-r border-indigo-100 dark:border-indigo-800/50"
+              >
+                <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">{isScanning ? 'Scanning...' : 'Camera'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={isScanning}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
+                title="Choose from Gallery"
+              >
+                <ImageIcon className="w-4 h-4 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Gallery</span>
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
