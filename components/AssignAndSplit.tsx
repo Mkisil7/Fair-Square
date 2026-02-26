@@ -170,8 +170,8 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
     return (
         <div className="w-full max-w-4xl mx-auto p-4 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            {/* Header & Sticky Alert */}
-            <div className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 border-b border-zinc-200 dark:border-zinc-800">
+            {/* Header & sticky Alert -> removed sticky */}
+            <div className="bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 border-b border-zinc-200 dark:border-zinc-800">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Assign & Split</h1>

@@ -1130,8 +1130,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
             {/* Recent Expenses & Filters */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                <h3 className="font-bold text-gray-900 dark:text-white text-lg m-0">Recent Expenses</h3>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 w-full justify-end">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
@@ -1348,51 +1347,56 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
             handleShare={handleShare}
             onPay={(debt: any) => { setSettleUpDebt(debt); setSettleAmount(debt.amount.toFixed(2)); }}
           />
-        )}
+        )
+        }
 
-        {activeTab === 'settings' && (
-          <TripSettingsTab trip={trip} user={user} onBack={() => setActiveTab('dashboard')} handleShare={handleShare} />
-        )}
-      </div>
+        {
+          activeTab === 'settings' && (
+            <TripSettingsTab trip={trip} user={user} onBack={() => setActiveTab('dashboard')} handleShare={handleShare} />
+          )
+        }
+      </div >
 
       {/* Settle Up Modal */}
-      {settleUpDebt && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 pb-safe">
-          <div className="bg-white dark:bg-zinc-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settle Up</h2>
-              <button onClick={() => setSettleUpDebt(null)} className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                <X className="w-5 h-5" />
+      {
+        settleUpDebt && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 pb-safe">
+            <div className="bg-white dark:bg-zinc-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-8">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Settle Up</h2>
+                <button onClick={() => setSettleUpDebt(null)} className="p-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">You owe {trip.memberNames[settleUpDebt.to]}</p>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <span className="text-gray-500 dark:text-gray-400 text-3xl font-bold">$</span>
+                  </div>
+                  <input
+                    type="number"
+                    className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl pl-12 pr-4 py-4 text-4xl font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={settleAmount}
+                    onChange={(e) => setSettleAmount(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-2 text-right">Total Owed: ${settleUpDebt.amount.toFixed(2)}</p>
+              </div>
+
+              <button
+                onClick={executeSettleUp}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg py-4 rounded-2xl shadow-lg transition-colors"
+              >
+                Record Payment
               </button>
             </div>
-
-            <div className="mb-6">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">You owe {trip.memberNames[settleUpDebt.to]}</p>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <span className="text-gray-500 dark:text-gray-400 text-3xl font-bold">$</span>
-                </div>
-                <input
-                  type="number"
-                  className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl pl-12 pr-4 py-4 text-4xl font-bold text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={settleAmount}
-                  onChange={(e) => setSettleAmount(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-2 text-right">Total Owed: ${settleUpDebt.amount.toFixed(2)}</p>
-            </div>
-
-            <button
-              onClick={executeSettleUp}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg py-4 rounded-2xl shadow-lg transition-colors"
-            >
-              Record Payment
-            </button>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
 

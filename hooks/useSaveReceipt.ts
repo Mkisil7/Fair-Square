@@ -50,18 +50,26 @@ export function useSaveReceipt() {
                 safeUserOwedBreakdown[userId] = Number(amount.toFixed(2));
             }
 
-            // Construct Firestore Payload
+            // Construct Firestore Payload matching the Expense model
+            // Defaulting category to 'general' since Assign & Split doesn't have a specific category selection yet
+            const expenseDescription = `Assign & Split: ${safeItems.map(i => i.name).join(', ')}`;
             const firestorePayload = {
-                uploadedBy: payload.uploadedBy,
-                paidBy: payload.paidBy,
+                amount: safeTotals.grandTotal,
+                originalCurrency: 'USD',
+                originalAmount: safeTotals.grandTotal,
+                description: expenseDescription.substring(0, 100) + (expenseDescription.length > 100 ? '...' : ''), // cap description length
+                category: 'general',
+                payer: payload.paidBy,
+                splits: safeUserOwedBreakdown,
                 timestamp: serverTimestamp(),
-                totals: safeTotals,
-                items: safeItems,
-                userOwedBreakdown: safeUserOwedBreakdown,
+                createdBy: payload.uploadedBy,
+                // Include Assign & Split specific data under a metadata object or directly if needed
+                receiptItems: safeItems,
+                receiptTotals: safeTotals
             };
 
-            // Ensure db and collection are properly resolved
-            const receiptsCollectionRef = collection(db, 'groups', payload.groupId, 'receipts');
+            // Ensure db and collection are properly resolved targeting trips -> expenses
+            const receiptsCollectionRef = collection(db, 'trips', payload.groupId, 'expenses');
 
             // Add document to the nested sub-collection
             const docRef = await addDoc(receiptsCollectionRef, firestorePayload);
