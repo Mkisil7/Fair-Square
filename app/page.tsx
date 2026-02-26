@@ -1601,10 +1601,10 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   const [category, setCategory] = useState(initialExpense ? initialExpense.category : 'general');
   const [payer, setPayer] = useState(initialExpense ? initialExpense.payer : user.uid);
 
-  // Scanning State
   const [isScanning, setIsScanning] = useState(false);
   const [scanPreview, setScanPreview] = useState<string | null>(null);
   const [scannedReceiptData, setScannedReceiptData] = useState<any | null>(null);
+  const [showCameraOptions, setShowCameraOptions] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -1825,45 +1825,32 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{initialExpense ? 'Edit Expense' : 'Add Expense'}</h2>
         {!initialExpense && (
-          <div className="flex items-center gap-2">
+          <>
             <input
               type="file"
               accept="image/*"
               capture="environment"
               className="hidden"
               ref={cameraInputRef}
-              onChange={handleScanReceipt}
+              onChange={(e) => { setShowCameraOptions(false); handleScanReceipt(e); }}
             />
             <input
               type="file"
               accept="image/*"
               className="hidden"
               ref={galleryInputRef}
-              onChange={handleScanReceipt}
+              onChange={(e) => { setShowCameraOptions(false); handleScanReceipt(e); }}
             />
-
-            <div className="flex bg-indigo-50 dark:bg-indigo-900/30 rounded-xl overflow-hidden border border-indigo-100 dark:border-indigo-800/50">
-              <button
-                type="button"
-                onClick={() => cameraInputRef.current?.click()}
-                disabled={isScanning}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50 border-r border-indigo-100 dark:border-indigo-800/50"
-              >
-                <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">{isScanning ? 'Scanning...' : 'Camera'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => galleryInputRef.current?.click()}
-                disabled={isScanning}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
-                title="Choose from Gallery"
-              >
-                <ImageIcon className="w-4 h-4 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Gallery</span>
-              </button>
-            </div>
-          </div>
+            <button
+              type="button"
+              onClick={() => setShowCameraOptions(true)}
+              disabled={isScanning}
+              className="flex items-center gap-1.5 sm:gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
+            >
+              <Camera className="w-4 h-4 sm:w-4 sm:h-4" />
+              <span>{isScanning ? 'Scanning...' : 'Scan Receipt'}</span>
+            </button>
+          </>
         )}
       </div>
 
@@ -2082,6 +2069,34 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
           Save Expense
         </button>
       </div>
+
+      {/* Camera Options Action Sheet */}
+      {showCameraOptions && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4 pb-safe">
+          <div className="w-full max-w-sm flex flex-col gap-2 animate-in slide-in-from-bottom-10">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex items-center justify-center gap-3 py-4 text-center text-lg font-medium text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <Camera className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Take Photo
+              </button>
+              <button
+                onClick={() => galleryInputRef.current?.click()}
+                className="flex items-center justify-center gap-3 py-4 text-center text-lg font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <ImageIcon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Photo Library
+              </button>
+            </div>
+            <button
+              onClick={() => setShowCameraOptions(false)}
+              className="bg-white dark:bg-zinc-900 rounded-3xl py-4 text-center text-lg font-bold text-gray-900 dark:text-white shadow-xl hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
