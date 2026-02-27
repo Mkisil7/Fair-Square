@@ -774,7 +774,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
       alert("Please enter a valid amount.");
       return;
     }
-    if (amountVal > settleUpDebt.amount) {
+    if (Math.round(amountVal * 100) > Math.round(settleUpDebt.amount * 100)) {
       alert("You cannot pay more than you owe.");
       return;
     }
@@ -1201,8 +1201,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
             {/* Recent Expenses & Filters */}
             <div className="relative z-10">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 mt-2">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Recent Expenses</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 mb-5 mt-2">
                 <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
                   <select
                     value={sortBy}
@@ -2175,8 +2174,14 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
 
       {/* Camera Options Action Sheet */}
       {showCameraOptions && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4 pb-safe">
-          <div className="w-full max-w-sm flex flex-col gap-2 animate-in slide-in-from-bottom-10">
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4"
+          onClick={() => setShowCameraOptions(false)}
+        >
+          <div
+            className="w-full max-w-sm flex flex-col gap-2 animate-in slide-in-from-bottom-10"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden flex flex-col shadow-2xl">
               <button
                 onClick={() => cameraInputRef.current?.click()}
