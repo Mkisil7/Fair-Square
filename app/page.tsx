@@ -46,6 +46,7 @@ import {
 import { format } from 'date-fns';
 import imageCompression from 'browser-image-compression';
 import AssignAndSplit from '../components/AssignAndSplit';
+import { motion, AnimatePresence } from 'motion/react';
 
 // --- Types ---
 type Trip = {
@@ -92,12 +93,12 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 const LogoBanner = () => (
-  <div className="flex items-center justify-center gap-1.5 py-3 w-full bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800/50 z-40 sticky top-0 mt-safe-pt">
-    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg">Fair</span>
-    <div className="w-5 h-5 border-[2.5px] border-indigo-600 dark:border-indigo-400 rounded flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-[10px] leading-none mb-0.5">
+  <div className="flex items-center justify-center gap-1.5 py-3 w-full bg-white/70 dark:bg-black/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 z-40 sticky top-0 mt-safe-pt shadow-sm">
+    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-xl">Fair</span>
+    <div className="w-6 h-6 border-[3px] border-indigo-600 dark:border-indigo-500 rounded-md flex items-center justify-center text-indigo-600 dark:text-indigo-500 font-black text-xs leading-none mb-0.5 shadow-sm">
       &amp;
     </div>
-    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-lg">Square</span>
+    <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-xl">Square</span>
   </div>
 );
 
@@ -248,42 +249,48 @@ export default function App() {
       </div>
 
       {/* Global Bottom Navigation */}
-      <nav className="shrink-0 mt-auto bg-white dark:bg-zinc-900 border-t border-gray-100 dark:border-gray-800 px-6 pt-4 pb-[max(env(safe-area-inset-bottom),1rem)] flex justify-between items-center w-full z-50">
+      <nav className="shrink-0 mt-auto bg-white/90 dark:bg-black/90 backdrop-blur-lg border-t border-gray-200/50 dark:border-gray-800/50 px-6 pt-3 pb-[max(env(safe-area-inset-bottom),1.5rem)] flex justify-between items-center w-full z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)] relative">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+          className={`flex flex-col items-center gap-1 flex-1 transition-colors ${activeTab === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
         >
-          <Wallet className="w-6 h-6" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Dashboard</span>
+          <motion.div whileTap={{ scale: 0.9 }}>
+            <Wallet className={`w-6 h-6 ${activeTab === 'dashboard' ? 'fill-indigo-100 dark:fill-indigo-900/50' : ''}`} />
+          </motion.div>
+          <span className="text-[10px] font-bold uppercase tracking-wider">Dashboard</span>
         </button>
 
         <button
-          onClick={() => {
-            // When user clicks add, set active tab to add.
-            // If they are on home, we could trigger a "new trip" modal, but for now we'll just switch the tab.
-            setActiveTab('add');
-          }}
-          className="flex-1 flex justify-center -mt-8"
+          onClick={() => setActiveTab('add')}
+          className="flex-1 flex justify-center -mt-10"
         >
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform ${activeTab === 'add' ? 'bg-indigo-700 dark:bg-indigo-500 scale-110' : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400'}`}>
-            <PlusCircle className="w-8 h-8 text-white" />
-          </div>
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(79,70,229,0.4)] dark:shadow-[0_8px_30px_rgba(99,102,241,0.3)] transition-colors border-[4px] border-white dark:border-black ${activeTab === 'add' ? 'bg-indigo-700 dark:bg-indigo-500' : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500'}`}
+          >
+            <PlusCircle className="w-7 h-7 text-white" />
+          </motion.div>
         </button>
 
         <button
           onClick={() => setActiveTab('friends')}
-          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'friends' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+          className={`flex flex-col items-center gap-1 flex-1 transition-colors ${activeTab === 'friends' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
         >
-          <Users className="w-6 h-6" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Friends</span>
+          <motion.div whileTap={{ scale: 0.9 }}>
+            <Users className={`w-6 h-6 ${activeTab === 'friends' ? 'fill-indigo-100 dark:fill-indigo-900/50' : ''}`} />
+          </motion.div>
+          <span className="text-[10px] font-bold uppercase tracking-wider">Friends</span>
         </button>
 
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center gap-1 flex-1 ${activeTab === 'settings' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+          className={`flex flex-col items-center gap-1 flex-1 transition-colors ${activeTab === 'settings' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
         >
-          <Settings className="w-6 h-6" />
-          <span className="text-[10px] font-medium uppercase tracking-wider">Settings</span>
+          <motion.div whileTap={{ scale: 0.9 }}>
+            <Settings className={`w-6 h-6 ${activeTab === 'settings' ? 'fill-indigo-100 dark:fill-indigo-900/50' : ''}`} />
+          </motion.div>
+          <span className="text-[10px] font-bold uppercase tracking-wider">Settings</span>
         </button>
       </nav>
     </div>
@@ -310,31 +317,53 @@ function LoginScreen() {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white">
-      <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mb-8 shadow-lg transform rotate-12">
-        <Wallet className="w-10 h-10 text-white -rotate-12" />
-      </div>
-      <div className="flex items-center justify-center gap-2 mb-2">
-        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tighter">Fair</h1>
-        <div className="w-12 h-12 border-[5px] border-indigo-600 rounded-xl flex items-center justify-center text-indigo-600 font-bold text-3xl leading-none mb-1">
-          &amp;
-        </div>
-        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tighter">Square</h1>
-      </div>
-      <p className="text-gray-500 mb-12 text-center text-lg">Split trip expenses with friends, seamlessly.</p>
+    <div className="flex-1 flex flex-col items-center justify-center p-6 bg-gradient-to-br from-indigo-50 to-white dark:from-zinc-900 dark:to-black relative overflow-hidden w-full h-full">
+      {/* Background Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-64 h-64 bg-indigo-400/20 dark:bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 bg-purple-400/20 dark:bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
 
-      <button
-        onClick={handleLogin}
-        className="w-full max-w-sm bg-gray-900 text-white py-4 px-6 rounded-2xl font-semibold text-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-3 shadow-md"
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="z-10 flex flex-col items-center"
       >
-        <svg className="w-6 h-6" viewBox="0 0 24 24">
-          <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-        </svg>
-        Continue with Google
-      </button>
+        <motion.div
+          initial={{ rotate: -90, scale: 0.5 }}
+          animate={{ rotate: 12, scale: 1 }}
+          transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
+          className="w-24 h-24 bg-gradient-to-tr from-indigo-600 to-purple-500 rounded-[2rem] flex items-center justify-center mb-8 shadow-2xl shadow-indigo-500/30"
+        >
+          <Wallet className="w-12 h-12 text-white -rotate-12" />
+        </motion.div>
+
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white tracking-tighter">Fair</h1>
+          <div className="w-12 h-12 border-[5px] border-indigo-600 dark:border-indigo-500 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-extrabold text-3xl leading-none mb-1 shadow-sm">
+            &amp;
+          </div>
+          <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white tracking-tighter">Square</h1>
+        </div>
+
+        <p className="text-gray-500 dark:text-gray-400 mb-14 text-center text-lg max-w-xs font-medium">
+          Split trip expenses with friends, seamlessly.
+        </p>
+
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleLogin}
+          className="w-full max-w-sm bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-4 px-6 rounded-2xl font-bold text-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors flex items-center justify-center gap-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(255,255,255,0.12)]"
+        >
+          <svg className="w-6 h-6" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+          </svg>
+          Continue with Google
+        </motion.button>
+      </motion.div>
     </div>
   );
 }
@@ -366,33 +395,37 @@ function TripCard({ trip, user, onClick }: { trip: Trip, user: User, onClick: ()
   }, [trip.id, user.uid]);
 
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="w-full bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 text-left hover:shadow-md transition-shadow flex flex-col gap-3 group"
+      className="w-full bg-white dark:bg-zinc-900/80 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 text-left hover:shadow-xl hover:shadow-indigo-500/10 dark:hover:shadow-indigo-500/5 transition-all flex flex-col gap-4 group relative overflow-hidden"
     >
-      <div className="flex items-start justify-between">
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-50 to-transparent dark:from-indigo-900/20 dark:to-transparent rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+
+      <div className="flex items-start justify-between relative z-10">
         <div>
-          <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-1">{trip.name}</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
+          <h3 className="font-bold text-xl text-gray-900 dark:text-white mb-1.5 tracking-tight">{trip.name}</h3>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
             <Users className="w-4 h-4" /> {trip.members.length} members
           </p>
         </div>
-        <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex flex-shrink-0 items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-500 transition-colors">
+        <div className="w-10 h-10 bg-indigo-50 dark:bg-zinc-800 rounded-full flex flex-shrink-0 items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white dark:group-hover:bg-indigo-500 transition-colors shadow-sm">
           <ChevronRight className="w-5 h-5" />
         </div>
       </div>
 
       {balance !== null && (
-        <div className={`mt-2 inline-flex py-1 px-3 rounded-full text-xs font-bold uppercase tracking-wide ${balance > 0.01 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-          balance < -0.01 ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-            'bg-gray-100 text-gray-500'
+        <div className={`mt-1 inline-flex py-1.5 px-3.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm z-10 ${balance > 0.01 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+          balance < -0.01 ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20' :
+            'bg-gray-50 text-gray-600 border border-gray-200 dark:bg-white/5 dark:text-gray-400 dark:border-white/10'
           }`}>
           {balance > 0.01 ? `You're owed $${balance.toFixed(2)}` :
             balance < -0.01 ? `You owe $${Math.abs(balance).toFixed(2)}` :
               'Settled up'}
         </div>
       )}
-    </button>
+    </motion.button>
   );
 }
 
@@ -466,40 +499,38 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-black">
-      <header className="bg-white dark:bg-zinc-900 px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 flex justify-between items-center transition-colors">
+    <div className="flex flex-col h-full bg-gray-50/50 dark:bg-black relative">
+      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-5 pt-[max(env(safe-area-inset-top),2.5rem)] border-b border-gray-200/50 dark:border-gray-800/50 z-10 flex justify-between items-center sticky top-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Trips</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">My Trips</h1>
         </div>
         <div className="flex items-center gap-3">
           {user.photoURL ? (
-            <img src={user.photoURL} alt="Profile" className="w-10 h-10 rounded-full border-2 border-indigo-100 dark:border-indigo-900 object-cover" />
+            <img src={user.photoURL} alt="Profile" className="w-12 h-12 rounded-full border-[3px] border-white dark:border-zinc-800 object-cover shadow-sm" />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold border-2 border-indigo-200 dark:border-indigo-800">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold border-[3px] border-white dark:border-zinc-800 shadow-sm text-lg">
               {user.displayName?.charAt(0) || '?'}
             </div>
           )}
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 pb-32">
         {trips.length === 0 ? (
-          <div className="text-center py-12 px-4 animate-in fade-in slide-in-from-bottom-4">
-            <div className="w-48 h-48 mx-auto mb-6 opacity-90 transition-transform hover:scale-105 duration-300">
-              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
-                <circle cx="50" cy="50" r="45" fill="#f3f4f6" />
-                <path d="M20,60 Q35,40 50,60 T80,50 L80,95 L20,95 Z" fill="#d1d5db" />
-                <path d="M30,55 Q45,35 60,55 T90,45 L90,95 L30,95 Z" fill="#9ca3af" />
-                <circle cx="70" cy="25" r="8" fill="#fbbf24" />
-                <path d="M15,25 Q20,20 25,25 T35,25" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-                <path d="M40,15 Q45,10 50,15 T60,15" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-              </svg>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-12 px-4 flex flex-col items-center justify-center h-full"
+          >
+            <div className="w-56 h-56 mb-8 relative flex items-center justify-center">
+              <div className="absolute inset-0 bg-indigo-400/20 dark:bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+              <Palmtree className="w-32 h-32 text-indigo-200 dark:text-indigo-900/50 drop-shadow-xl" />
             </div>
-            <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">You haven't planned any trips yet!</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-xs mx-auto text-sm">
-              Whether it's a weekend getaway or a cross-country road trip, Fair & Square makes it easy to split the costs.
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-3 tracking-tight">No trips yet</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-[260px] mx-auto text-base font-medium leading-relaxed">
+              Create a new trip or join an existing one to start splitting the costs.
             </p>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-4">
             {trips.map((trip) => (
@@ -509,61 +540,82 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
         )}
       </div>
 
-      <div className="p-6 bg-white dark:bg-zinc-900 border-t border-gray-100 dark:border-gray-800 flex gap-3 transition-colors">
-        <button
+      <div className="absolute bottom-6 left-6 right-6 flex gap-4 pointer-events-auto z-20">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setShowJoin(true)}
-          className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          className="flex-1 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] border border-gray-100 dark:border-gray-700 transition-colors"
         >
-          <UserPlus className="w-5 h-5" /> Join
-        </button>
-        <button
+          <UserPlus className="w-6 h-6" /> Join
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setShowCreate(true)}
-          className="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-medium flex items-center justify-center gap-2 shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-colors"
+          className="flex-[1.5] bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-[0_8px_30px_rgba(79,70,229,0.3)] dark:shadow-[0_8px_30px_rgba(99,102,241,0.2)] transition-colors overflow-hidden relative"
         >
-          <Plus className="w-5 h-5" /> Create
-        </button>
+          <div className="absolute inset-0 bg-white/20 hover:bg-transparent transition-colors" />
+          <Plus className="w-6 h-6 relative z-10" /> <span className="relative z-10">Create Trip</span>
+        </motion.button>
       </div>
 
       {/* Modals */}
-      {showCreate && (
-        <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Trip</h2>
-            <input
-              type="text"
-              placeholder="Trip Name (e.g. Bali 2024)"
-              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              value={newTripName}
-              onChange={(e) => setNewTripName(e.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-3">
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">Cancel</button>
-              <button onClick={handleCreateTrip} className="flex-1 py-3 font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">Create</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showCreate && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+              className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16" />
+              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 relative z-10">Create New Trip</h2>
+              <input
+                type="text"
+                placeholder="Trip Name (e.g. Bali 2024)"
+                className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-5 py-4 mb-8 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium relative z-10"
+                value={newTripName}
+                onChange={(e) => setNewTripName(e.target.value)}
+                autoFocus
+              />
+              <div className="flex gap-4 relative z-10">
+                <button onClick={() => setShowCreate(false)} className="flex-1 py-4 font-bold text-gray-500 bg-gray-100 dark:bg-zinc-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded-2xl transition-colors">Cancel</button>
+                <button onClick={handleCreateTrip} className="flex-1 py-4 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl transition-colors shadow-lg shadow-indigo-500/30">Create</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
 
-      {showJoin && (
-        <div className="absolute inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Join a Trip</h2>
-            <input
-              type="text"
-              placeholder="Paste Trip ID here"
-              className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-xl px-4 py-3 mb-6 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
-              value={joinTripId}
-              onChange={(e) => setJoinTripId(e.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-3">
-              <button onClick={() => setShowJoin(false)} className="flex-1 py-3 font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">Cancel</button>
-              <button onClick={handleJoinTrip} className="flex-1 py-3 font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors">Join</button>
-            </div>
-          </div>
-        </div>
-      )}
+        {showJoin && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
+              className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16" />
+              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 relative z-10">Join a Trip</h2>
+              <input
+                type="text"
+                placeholder="Paste Trip ID here"
+                className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-5 py-4 mb-8 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm relative z-10"
+                value={joinTripId}
+                onChange={(e) => setJoinTripId(e.target.value)}
+                autoFocus
+              />
+              <div className="flex gap-4 relative z-10">
+                <button onClick={() => setShowJoin(false)} className="flex-1 py-4 font-bold text-gray-500 bg-gray-100 dark:bg-zinc-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded-2xl transition-colors">Cancel</button>
+                <button onClick={handleJoinTrip} className="flex-1 py-4 font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl transition-colors shadow-lg shadow-indigo-500/30">Join</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -951,27 +1003,27 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-black">
-      <header className="bg-white dark:bg-zinc-900 px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 sticky top-0 transition-colors">
+    <div className="flex flex-col h-full bg-gray-50/50 dark:bg-black relative">
+      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 sticky top-0 transition-colors border-b border-gray-200/50 dark:border-gray-800/50">
         <div className="flex justify-between items-center mb-6">
-          <button onClick={onBack} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full cursor-pointer transition-colors">
-            <ChevronLeft className="w-5 h-5" />
+          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-indigo-600 bg-gray-100/80 hover:bg-indigo-50 dark:bg-zinc-800 dark:hover:bg-indigo-900/40 rounded-full cursor-pointer transition-colors shadow-sm">
+            <ChevronLeft className="w-5 h-5 -ml-0.5" />
           </button>
 
           <div className="flex items-center gap-2">
-            <button onClick={() => setActiveTab('settings')} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-full cursor-pointer transition-colors">
+            <button onClick={() => setActiveTab('settings')} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-indigo-600 bg-gray-100/80 hover:bg-indigo-50 dark:bg-zinc-800 dark:hover:bg-indigo-900/40 rounded-full cursor-pointer transition-colors shadow-sm">
               <Settings2 className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        <div className="mb-2 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           {isEditingName ? (
             <div className="flex items-center gap-2 w-full">
               <input
                 type="text"
                 autoFocus
-                className="text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none w-full"
+                className="text-3xl font-black tracking-tight text-gray-900 dark:text-white bg-transparent border-b-2 border-indigo-500 focus:outline-none w-full"
                 value={editNameValue}
                 onChange={(e) => setEditNameValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -982,32 +1034,34 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                   }
                 }}
               />
-              <button onClick={saveUpdatedName} className="p-1.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-400 rounded-full"><Check className="w-5 h-5" /></button>
-              <button onClick={() => { setEditNameValue(trip.name); setIsEditingName(false); }} className="p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full"><X className="w-5 h-5" /></button>
+              <button onClick={saveUpdatedName} className="p-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-400 rounded-full shadow-sm hover:scale-105 transition-transform"><Check className="w-5 h-5" /></button>
+              <button onClick={() => { setEditNameValue(trip.name); setIsEditingName(false); }} className="p-2 bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 rounded-full shadow-sm hover:scale-105 transition-transform"><X className="w-5 h-5" /></button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingName(true)}>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{trip.name}</h1>
-              <Pencil className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-indigo-500 transition-colors" />
+            <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setIsEditingName(true)}>
+              <h1 className="text-3xl font-black tracking-tight text-gray-900 dark:text-white">{trip.name}</h1>
+              <div className="w-8 h-8 rounded-full bg-gray-100/0 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 flex items-center justify-center transition-colors">
+                <Pencil className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-indigo-500 transition-colors" />
+              </div>
             </div>
           )}
         </div>
 
-        <div className="flex gap-2 flew-wrap overflow-x-auto no-scrollbar pb-2 -mb-2">
+        <div className="flex gap-2 flex-wrap overflow-x-auto hide-scrollbar pb-2 -mb-2">
           {/* Members Pill Badge */}
-          <div className="flex items-center gap-1.5 bg-gray-100/50 dark:bg-zinc-800/50 text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 cursor-pointer hover:bg-gray-200/50 dark:hover:bg-zinc-700/50 transition-colors whitespace-nowrap" onClick={() => setActiveTab('friends')}>
+          <div className="flex items-center gap-1.5 bg-gray-100/80 dark:bg-zinc-800/80 text-gray-600 dark:text-gray-300 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm cursor-pointer hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors whitespace-nowrap" onClick={() => setActiveTab('friends')}>
             <Users className="w-3.5 h-3.5" />
             <span>{trip.members.length} member{trip.members.length !== 1 ? 's' : ''}</span>
           </div>
           {/* Date Range Pill */}
           {trip.dateRange && (
-            <div className="flex items-center gap-1.5 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-indigo-100/50 dark:border-indigo-800/50 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 bg-indigo-50/80 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm whitespace-nowrap">
               <Calendar className="w-3.5 h-3.5" />
               <span>{trip.dateRange}</span>
             </div>
           )}
           {/* Active Status Pill */}
-          <div className="flex items-center gap-1.5 bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border border-emerald-100/50 dark:border-emerald-800/50 whitespace-nowrap">
+          <div className="flex items-center gap-1.5 bg-emerald-50/80 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-sm whitespace-nowrap">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
             <span>Active</span>
           </div>
@@ -1030,15 +1084,21 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
                 if (myDebts.length === 0) {
                   return (
-                    <div className="p-6 rounded-3xl text-white shadow-lg bg-indigo-500">
-                      <p className="text-white/80 text-sm font-medium mb-1">Your Balance</p>
-                      <h2 className="text-4xl font-bold tracking-tight mb-2">
-                        $0.00
-                      </h2>
-                      <p className="text-white/100 text-sm font-semibold">
-                        🎉 You are all settled up.
-                      </p>
-                    </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      className="p-6 rounded-[2rem] text-white shadow-[0_8px_30px_rgba(79,70,229,0.2)] bg-gradient-to-tr from-indigo-500 to-purple-500 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                      <div className="relative z-10">
+                        <p className="text-white/80 text-sm font-bold uppercase tracking-wider mb-1">Your Balance</p>
+                        <h2 className="text-5xl font-black tracking-tighter mb-2 drop-shadow-sm">
+                          $0.00
+                        </h2>
+                        <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-white text-xs font-bold shadow-sm">
+                          🎉 <span className="mt-px">You are all settled up</span>
+                        </div>
+                      </div>
+                    </motion.div>
                   );
                 }
 
@@ -1048,22 +1108,34 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                   const otherPersonName = trip.memberNames[otherPersonId] || 'Unknown';
 
                   return (
-                    <div key={idx} className={`p-6 rounded-3xl text-white shadow-md ${iOwe ? 'bg-rose-500' : 'bg-emerald-500'}`}>
-                      <h2 className="text-3xl font-bold tracking-tight mb-1">
-                        ${debt.amount.toFixed(2)}
-                      </h2>
-                      <p className="text-white/100 text-base font-semibold mb-4">
-                        {iOwe ? `You owe ${otherPersonName}` : `${otherPersonName} owes you`}
-                      </p>
-                      {iOwe && (
-                        <button
-                          onClick={() => { setSettleUpDebt(debt); setSettleAmount(debt.amount.toFixed(2)); }}
-                          className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-colors"
-                        >
-                          Mark as Paid
-                        </button>
-                      )}
-                    </div>
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-6 rounded-[2rem] text-white shadow-[0_8px_30px_rgba(0,0,0,0.12)] overflow-hidden relative ${iOwe ? 'bg-gradient-to-br from-rose-500 to-rose-600' : 'bg-gradient-to-br from-emerald-500 to-emerald-600'}`}
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 pointer-events-none" />
+                      <div className="absolute bottom-[-20%] left-[-10%] w-24 h-24 bg-black/10 rounded-full pointer-events-none blur-xl" />
+
+                      <div className="relative z-10">
+                        <h2 className="text-4xl font-black tracking-tighter mb-1 drop-shadow-sm">
+                          ${debt.amount.toFixed(2)}
+                        </h2>
+                        <p className="text-white/95 text-base font-bold mb-5 tracking-wide">
+                          {iOwe ? `You owe ${otherPersonName}` : `${otherPersonName} owes you`}
+                        </p>
+                        {iOwe && (
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => { setSettleUpDebt(debt); setSettleAmount(debt.amount.toFixed(2)); }}
+                            className="bg-white text-rose-600 px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all w-max flex items-center gap-2"
+                          >
+                            <Wallet className="w-4 h-4" /> Mark as Paid
+                          </motion.button>
+                        )}
+                      </div>
+                    </motion.div>
                   );
                 });
               })()}
@@ -1128,13 +1200,14 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
             </div>
 
             {/* Recent Expenses & Filters */}
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                <div className="flex flex-wrap items-center gap-2 w-full justify-end">
+            <div className="relative z-10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 mt-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Recent Expenses</h3>
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-sm font-medium text-zinc-900 dark:text-zinc-100 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
+                    className="bg-white dark:bg-zinc-800 border border-gray-200 dark:border-gray-700 text-sm font-bold text-gray-700 dark:text-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer shadow-sm"
                   >
                     <option value="recent">Most Recent</option>
                     <option value="oldest">Oldest</option>
@@ -1144,7 +1217,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                   </select>
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${showFilters ? 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300' : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'}`}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm ${showFilters ? 'bg-indigo-600 text-white shadow-indigo-500/30' : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-700 border border-gray-200 dark:border-gray-700'}`}
                   >
                     <Filter size={14} />
                     Filters {showFilters ? '-' : '+'}
@@ -1255,29 +1328,44 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                 </div>
               )}
               {processedExpenses.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-gray-800">
-                  <Receipt className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                  <p className="text-gray-500 dark:text-gray-400">No expenses found.</p>
+                <div className="text-center py-12 px-4 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 shadow-sm flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/40 rounded-full flex items-center justify-center mb-4">
+                    <Receipt className="w-8 h-8 text-indigo-500 dark:text-indigo-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">No expenses yet</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center max-w-xs">Start adding expenses to automatically track who owes what.</p>
+                  <button
+                    onClick={() => setActiveTab('add')}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md shadow-indigo-200 dark:shadow-indigo-900/20 active:scale-95 flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" /> Add First Expense
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {processedExpenses.map((exp: Expense) => (
-                    <div key={exp.id} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between transition-colors">
+                  {processedExpenses.map((exp: Expense, index: number) => (
+                    <motion.div
+                      key={exp.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(index * 0.05, 0.5) }}
+                      className="bg-white dark:bg-zinc-900/80 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 flex items-center justify-between hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-900/50 transition-all group"
+                    >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xl">
-                          {exp.category === 'food' ? '🍔' : exp.category === 'transport' ? '🚕' : exp.category === 'lodging' ? '🏨' : '💸'}
+                        <div className="w-12 h-12 bg-gradient-to-br from-gray-50 to-gray-200 dark:from-zinc-800 dark:to-zinc-700 rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-white/50 dark:border-white/5">
+                          {exp.category === 'food' ? '🍔' : exp.category === 'transport' ? '🚕' : exp.category === 'lodging' ? '🏨' : exp.category === 'settlement' ? '💸' : '🛒'}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{exp.description}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {trip.memberNames[exp.payer]} paid • {exp.timestamp ? format(exp.timestamp.toDate(), 'MMM d') : 'Just now'}
+                          <p className="font-bold text-gray-900 dark:text-white text-base tracking-tight mb-0.5">{exp.description}</p>
+                          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                            <span className="text-gray-700 dark:text-gray-300">{trip.memberNames[exp.payer]}</span> paid • {exp.timestamp ? format(exp.timestamp.toDate(), 'MMM d, h:mm a') : 'Just now'}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-bold text-gray-900 dark:text-white">
+                      <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                        <p className="font-black text-gray-900 dark:text-white text-lg tracking-tight">
                           {exp.originalCurrency && exp.originalCurrency !== 'USD' ? (
-                            <span className="text-xs text-gray-400 mr-1 font-normal" title={`$${exp.amount.toFixed(2)} USD`}>
+                            <span className="text-[10px] text-gray-400 mr-1.5 font-bold bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-md" title={`$${exp.amount.toFixed(2)} USD`}>
                               {CURRENCY_SYMBOLS[exp.originalCurrency]}{exp.originalAmount?.toFixed(2)}
                             </span>
                           ) : null}
@@ -1285,32 +1373,40 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
                         </p>
                         {exp.splits[user.uid] > 0 && exp.payer !== user.uid && (
                           exp.category === 'settlement' ? (
-                            <p className="text-xs text-emerald-500 dark:text-emerald-400 font-medium">You received ${exp.splits[user.uid].toFixed(2)}</p>
+                            <div className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-lg self-end tracking-wider uppercase">Received ${exp.splits[user.uid].toFixed(2)}</div>
                           ) : myBalance < -0.01 ? (
-                            <p className="text-xs text-rose-500 dark:text-rose-400 font-medium">You owe ${exp.splits[user.uid].toFixed(2)}</p>
+                            <div className="bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10px] font-bold px-2 py-0.5 rounded-lg self-end tracking-wider uppercase">You owe ${exp.splits[user.uid].toFixed(2)}</div>
                           ) : (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Your share ${exp.splits[user.uid].toFixed(2)}</p>
+                            <div className="bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-lg self-end tracking-wider uppercase">Your share ${exp.splits[user.uid].toFixed(2)}</div>
                           )
                         )}
                       </div>
                       {(exp.createdBy === user.uid || (!exp.createdBy && exp.payer === user.uid)) && (
-                        <div className="pl-4 ml-4 border-l border-gray-100 dark:border-gray-800 flex items-center">
+                        <div className="pl-3 ml-3 border-l border-gray-100 dark:border-gray-800 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => {
                               setEditingExpense(exp);
                               setActiveTab('edit');
                             }}
-                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-colors"
+                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-colors"
                           >
-                            <Pencil className="w-5 h-5" />
+                            <Pencil className="w-4 h-4" />
                           </button>
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               )}
             </div>
+
+            {/* Floating Action Button for Trips Dashboard */}
+            <button
+              onClick={() => setActiveTab('add')}
+              className="fixed bottom-8 right-6 w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(79,70,229,0.4)] hover:shadow-[0_8px_30px_rgba(79,70,229,0.6)] hover:scale-105 active:scale-95 transition-all z-50 group"
+            >
+              <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
           </div>
         )}
 
@@ -1935,7 +2031,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         />
 
         {/* Category */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 hide-scrollbar">
+        <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2 hide-scrollbar">
           {[
             { id: 'general', icon: '💸', label: 'General' },
             { id: 'food', icon: '🍔', label: 'Food' },
@@ -1945,12 +2041,13 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-colors ${category === cat.id
-                ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400'
-                : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400'
+              className={`flex-shrink-0 flex flex-col items-center justify-center gap-2 w-20 h-20 rounded-2xl border transition-all ${category === cat.id
+                ? 'bg-indigo-50 dark:bg-indigo-900/40 border-indigo-500 text-indigo-700 dark:text-indigo-400 shadow-sm scale-105'
+                : 'bg-white dark:bg-zinc-900 border-gray-100 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-200 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-zinc-800'
                 }`}
             >
-              <span>{cat.icon}</span> {cat.label}
+              <span className="text-2xl drop-shadow-sm">{cat.icon}</span>
+              <span className="text-xs font-bold">{cat.label}</span>
             </button>
           ))}
         </div>
@@ -2066,12 +2163,14 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
           )}
         </div>
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={handleSave}
-          className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors mt-4"
+          className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-lg shadow-[0_8px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_8px_30px_rgba(79,70,229,0.5)] transition-all mt-6 mb-8"
         >
-          Save Expense
-        </button>
+          <Check className="w-5 h-5" /> {initialExpense ? 'Save Changes' : 'Add Expense'}
+        </motion.button>
       </div>
 
       {/* Camera Options Action Sheet */}

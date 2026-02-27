@@ -184,10 +184,10 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                         onClick={handleSave}
                         disabled={hasUnclaimed || isSaving}
                         className={cn(
-                            "flex flex-none items-center gap-2 px-6 py-2.5 rounded-full font-semibold transition-all shadow-sm",
+                            "flex flex-none items-center gap-2 px-6 py-2.5 rounded-full font-bold transition-all shadow-sm",
                             (hasUnclaimed || isSaving)
-                                ? "bg-zinc-100 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600"
-                                : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md hover:-translate-y-0.5"
+                                ? "bg-zinc-100 text-zinc-400 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600 border border-zinc-200 dark:border-zinc-700"
+                                : "bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-[0_4px_15px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 border border-transparent"
                         )}
                     >
                         <Save size={18} />
@@ -232,7 +232,7 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 shadow-sm hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-colors group"
+                                className="bg-white dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-all group"
                             >
                                 <div className="flex flex-col gap-2">
                                     {/* Item Input - Name */}
@@ -299,8 +299,9 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                         ))}
                     </div>
 
-                    <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-xl p-5 border border-zinc-200 dark:border-zinc-800">
-                        <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Receipt Summary</h3>
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-2xl p-5 border border-indigo-100 dark:border-indigo-900/50 shadow-sm relative overflow-hidden">
+                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
+                        <h3 className="font-bold text-indigo-900 dark:text-indigo-100 mb-4 tracking-tight relative z-10">Receipt Summary</h3>
                         <div className="space-y-3">
                             <div className="flex justify-between items-center text-sm text-zinc-600 dark:text-zinc-400">
                                 <span>Subtotal</span>
@@ -350,10 +351,10 @@ export default function AssignAndSplit({ initialReceiptData, users, groupId, upl
                 </div>
 
                 {/* Right Column (Now Bottom): User Totals */}
-                <div className="w-full border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-950 shadow-sm overflow-hidden mb-8">
-                    <div className="bg-zinc-50 dark:bg-zinc-900/50 p-4 border-b border-zinc-200 dark:border-zinc-800">
-                        <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">Owed Amounts</h2>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Includes proportional tax & tip</p>
+                <div className="w-full border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-white dark:bg-zinc-900 shadow-sm overflow-hidden mb-8">
+                    <div className="bg-zinc-50 dark:bg-black/40 p-5 border-b border-zinc-200 dark:border-zinc-800">
+                        <h2 className="font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Owed Amounts</h2>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Includes proportional tax & tip</p>
                     </div>
 
                     <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">

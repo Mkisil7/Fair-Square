@@ -1,3 +1,49 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-brand-100: #e0e7ff;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-900: #312e81;
+
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #121212;
+  --color-surface-dark-elv: #1e1e1e;
+
+  --color-border-light: #e5e7eb;
+  --color-border-dark: #2d2d2d;
+}
+
+@layer base {
+  :root {
+    --background: var(--color-surface-light);
+    --foreground: #111827;
+  }
+  .dark {
+    --background: var(--color-surface-dark);
+    --foreground: #f9fafb;
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    @apply antialiased;
+    background-color: var(--background);
+    color: var(--foreground);
+    /* Improve mobile tap feeling */
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+}
+
+/* Hide scrollbars for slick horizontal scroll areas */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

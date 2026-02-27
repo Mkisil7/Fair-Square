@@ -205,30 +205,30 @@ export default function GroupLedger({ groupId, currentUserId, users }: GroupLedg
                     <div className="grid gap-4 sm:grid-cols-2">
                         {/* You Owe */}
                         {debtsOwedByMe.map(debt => (
-                            <div key={debt.userId} className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900/30 shadow-sm rounded-2xl p-5 flex flex-col justify-between overflow-hidden relative">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-red-500" />
-                                <div>
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">You owe {getUserName(debt.userId)}</p>
-                                    <p className="text-2xl font-bold text-red-600 dark:text-red-400 mt-1">${debt.netAmount.toFixed(2)}</p>
+                            <motion.div whileHover={{ scale: 1.02 }} key={debt.userId} className="bg-gradient-to-br from-white to-red-50 dark:from-zinc-900 dark:to-red-950/20 border border-red-100 dark:border-red-900/30 shadow-md hover:shadow-lg rounded-3xl p-6 flex flex-col justify-between overflow-hidden relative transition-all group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none transition-transform group-hover:scale-110" />
+                                <div className="relative z-10">
+                                    <p className="text-sm font-bold text-red-600/80 dark:text-red-400/80 uppercase tracking-wider mb-1">You owe {getUserName(debt.userId)}</p>
+                                    <p className="text-4xl font-black text-red-600 dark:text-red-400 drop-shadow-sm mb-4">${debt.netAmount.toFixed(2)}</p>
                                 </div>
                                 <button
                                     onClick={() => handleSettleUpClick(debt.userId, debt.netAmount)}
-                                    className="mt-4 w-full bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/40 dark:hover:bg-red-900/60 dark:text-red-300 py-2 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
+                                    className="relative z-10 w-full bg-red-500 hover:bg-red-600 text-white shadow-sm hover:shadow-red-500/25 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
                                 >
                                     Settle Up <ArrowRight size={16} />
                                 </button>
-                            </div>
+                            </motion.div>
                         ))}
 
                         {/* Owes You */}
                         {debtsOwedToMe.map(debt => (
-                            <div key={debt.userId} className="bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-900/30 shadow-sm rounded-2xl p-5 flex flex-col justify-between overflow-hidden relative">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
-                                <div>
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400">{getUserName(debt.userId)} owes you</p>
-                                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">${Math.abs(debt.netAmount).toFixed(2)}</p>
+                            <motion.div whileHover={{ scale: 1.02 }} key={debt.userId} className="bg-gradient-to-br from-white to-emerald-50 dark:from-zinc-900 dark:to-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 shadow-md hover:shadow-lg rounded-3xl p-6 flex flex-col justify-between overflow-hidden relative transition-all group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none transition-transform group-hover:scale-110" />
+                                <div className="relative z-10">
+                                    <p className="text-sm font-bold text-emerald-600/80 dark:text-emerald-400/80 uppercase tracking-wider mb-1">{getUserName(debt.userId)} owes you</p>
+                                    <p className="text-4xl font-black text-emerald-600 dark:text-emerald-400 drop-shadow-sm">${Math.abs(debt.netAmount).toFixed(2)}</p>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
                     </div>
                 )}
@@ -252,41 +252,49 @@ export default function GroupLedger({ groupId, currentUserId, users }: GroupLedg
 
                             if (item.type === 'receipt') {
                                 return (
-                                    <div key={item.id} className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex items-center gap-4 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-                                        <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                                            <Receipt size={20} />
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                        key={item.id}
+                                        className="bg-white dark:bg-zinc-900/80 border border-zinc-100 dark:border-zinc-800 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md hover:border-indigo-100 dark:hover:border-indigo-900/50 transition-all group"
+                                    >
+                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/40 dark:to-indigo-800/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-sm border border-indigo-200/50 dark:border-indigo-700/50">
+                                            <Receipt size={22} />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                            <p className="font-bold text-gray-900 dark:text-white truncate tracking-tight text-base mb-0.5">
                                                 {item.merchantName || 'Receipt added'}
                                             </p>
-                                            <p className="text-sm text-zinc-500 truncate">
-                                                {getUserName(item.paidBy)} paid • {dateFormatted}
+                                            <p className="text-xs font-medium text-gray-500 truncate">
+                                                <span className="text-gray-700 dark:text-gray-300">{getUserName(item.paidBy)}</span> paid • {dateFormatted}
                                             </p>
                                         </div>
-                                        <div className="font-bold text-zinc-900 dark:text-zinc-100">
+                                        <div className="font-black text-gray-900 dark:text-white text-lg tracking-tight">
                                             ${item.totals.grandTotal.toFixed(2)}
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 );
                             } else {
                                 return (
-                                    <div key={item.id} className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl p-4 flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                                            <CreditCard size={20} />
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                        key={item.id}
+                                        className="bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-4 flex items-center gap-4 hover:shadow-md transition-all group"
+                                    >
+                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/50 dark:to-emerald-800/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0 shadow-sm border border-emerald-200/50 dark:border-emerald-700/50">
+                                            <CreditCard size={22} />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-emerald-900 dark:text-emerald-100 truncate">
+                                            <p className="font-bold text-emerald-900 dark:text-emerald-100 truncate tracking-tight text-base mb-0.5">
                                                 {getUserName(item.payerId)} paid {getUserName(item.payeeId)}
                                             </p>
-                                            <p className="text-sm text-emerald-600/70 dark:text-emerald-400/70 truncate">
+                                            <p className="text-xs font-medium text-emerald-600/70 dark:text-emerald-400/70 truncate">
                                                 {dateFormatted}
                                             </p>
                                         </div>
-                                        <div className="font-bold text-emerald-700 dark:text-emerald-400">
+                                        <div className="font-black text-emerald-600 dark:text-emerald-400 text-lg tracking-tight">
                                             +${item.amount.toFixed(2)}
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 );
                             }
                         })}
@@ -297,29 +305,30 @@ export default function GroupLedger({ groupId, currentUserId, users }: GroupLedg
             {/* Settle Up Confirmation Modal */}
             <AnimatePresence>
                 {isSettleModalOpen && settleDebt && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-md">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-xl p-6 w-full max-w-sm"
+                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl p-6 w-full max-w-sm relative overflow-hidden"
                         >
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Confirm Settlement</h3>
-                            <p className="text-zinc-600 dark:text-zinc-400 mb-6 font-medium">
-                                Record a payment of <span className="text-zinc-900 dark:text-zinc-100 font-bold">${settleDebt.amount.toFixed(2)}</span> to {getUserName(settleDebt.userId)}?
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight mb-2 relative z-10">Confirm Settlement</h3>
+                            <p className="text-gray-600 dark:text-gray-400 mb-8 font-medium relative z-10">
+                                Record a payment of <span className="text-gray-900 dark:text-white font-black drop-shadow-sm">${settleDebt.amount.toFixed(2)}</span> to {getUserName(settleDebt.userId)}?
                             </p>
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 relative z-10">
                                 <button
                                     onClick={() => setIsSettleModalOpen(false)}
                                     disabled={isSettling}
-                                    className="flex-1 py-2.5 rounded-xl font-semibold bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+                                    className="flex-1 py-3.5 rounded-2xl font-bold bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={confirmSettleUp}
                                     disabled={isSettling}
-                                    className="flex-1 py-2.5 rounded-xl font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex justify-center items-center"
+                                    className="flex-1 py-3.5 rounded-2xl font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 transition-all flex justify-center items-center"
                                 >
                                     {isSettling ? 'Saving...' : 'Confirm'}
                                 </button>
