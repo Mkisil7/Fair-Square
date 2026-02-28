@@ -338,12 +338,15 @@ export default function App() {
 
 // --- Login Screen ---
 function LoginScreen() {
-  const handleLogin = async () => {
+  const signInWithGoogle = async () => {
     try {
+      // Determine the redirect URL based on environment (Vercel sets x-forwarded-host via NEXT_PUBLIC_SITE_URL or we can use window.location.origin on the client)
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
+
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo: redirectUrl
         }
       });
     } catch (error) {
