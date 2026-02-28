@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 
 export interface SaveReceiptPayload {
     groupId: string;
@@ -53,29 +52,28 @@ export function useSaveReceipt() {
             // Construct Firestore Payload matching the Expense model
             // Defaulting category to 'general' since Assign & Split doesn't have a specific category selection yet
             const expenseDescription = `Assign & Split: ${safeItems.map(i => i.name).join(', ')}`;
-            const firestorePayload = {
+            const supabasePayload = {
+                group_id: payload.groupId,
                 amount: safeTotals.grandTotal,
-                originalCurrency: 'USD',
-                originalAmount: safeTotals.grandTotal,
-                description: expenseDescription.substring(0, 100) + (expenseDescription.length > 100 ? '...' : ''), // cap description length
+                original_currency: 'USD',
+                original_amount: safeTotals.grandTotal,
+                description: expenseDescription.substring(0, 100) + (expenseDescription.length > 100 ? '...' : ''),
                 category: 'general',
-                payer: payload.paidBy,
+                payer_id: payload.paidBy,
                 splits: safeUserOwedBreakdown,
-                timestamp: serverTimestamp(),
-                createdBy: payload.uploadedBy,
-                // Include Assign & Split specific data under a metadata object or directly if needed
-                receiptItems: safeItems,
-                receiptTotals: safeTotals
+                created_by: payload.uploadedBy
             };
 
-            // Ensure db and collection are properly resolved targeting trips -> expenses
-            const receiptsCollectionRef = collection(db, 'trips', payload.groupId, 'expenses');
+            const { data, error: insertError } = await supabase
+                .from('group_expenses')
+                .insert(supabasePayload)
+                .select()
+                .single();
 
-            // Add document to the nested sub-collection
-            const docRef = await addDoc(receiptsCollectionRef, firestorePayload);
+            if (insertError) throw insertError;
 
             setIsSuccess(true);
-            return { success: true, docId: docRef.id };
+            return { success: true, docId: data.id };
         } catch (err: any) {
             console.error('Error saving receipt:', err);
             setError(err instanceof Error ? err : new Error(err.message || 'Failed to save receipt'));

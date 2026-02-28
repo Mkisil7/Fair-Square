@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { auth, db, googleProvider } from '../lib/firebase';
-import { signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { supabase } from '../lib/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   collection,
   query,
@@ -60,6 +60,13 @@ type Trip = {
   createdAt: any;
 };
 
+export type User = {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+};
+
 type Expense = {
   id: string;
   amount: number; // Stored in USD equivalent
@@ -108,8 +115,9 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   // Global Navigation State
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'friends' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'add' | 'friends' | 'settings' | 'p2p'>('dashboard');
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [showGlobalHub, setShowGlobalHub] = useState(false);
 
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -124,27 +132,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, 'users', user.uid, 'notifications'),
-      where('read', '==', false)
-      // Note: Ordering requires a composite index, so we sort client-side to avoid index requirement for now
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      notifs.sort((a: any, b: any) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
-      setNotifications(notifs);
-    });
-    return () => unsubscribe();
+    // Supabase Notification Realtime logic will go here
   }, [user]);
 
   const markNotificationRead = async (id: string) => {
-    if (!user) return;
-    try {
-      await updateDoc(doc(db, 'users', user.uid, 'notifications', id), { read: true });
-    } catch (e) {
-      console.error(e);
-    }
+    // Set up Supabase mutation
   };
 
   const toggleTheme = () => {
@@ -162,11 +154,36 @@ export default function App() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const mapUser = (su: SupabaseUser | null): User | null => {
+      if (!su) return null;
+      return {
+        uid: su.id,
+        email: su.email || null,
+        displayName: su.user_metadata?.full_name || su.user_metadata?.name || null,
+        photoURL: su.user_metadata?.avatar_url || su.user_metadata?.picture || null,
+      };
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(mapUser(session?.user ?? null));
       setLoading(false);
     });
-    return () => unsubscribe();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const mapped = mapUser(session?.user ?? null);
+      setUser(mapped);
+
+      if (mapped && _event === 'SIGNED_IN') {
+        supabase.from('profiles').upsert({
+          id: mapped.uid,
+          name: mapped.displayName,
+          email: mapped.email,
+          avatar_url: mapped.photoURL
+        }).then();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
@@ -213,8 +230,11 @@ export default function App() {
       if (selectedTrip) {
         return <TripScreen tab="friends" user={user} trip={selectedTrip} onBack={() => setSelectedTrip(null)} />;
       }
-      // Global friends list not implemented yet, just show home
-      return <HomeScreen user={user} onSelectTrip={(trip) => setSelectedTrip(trip)} />;
+      return <GlobalFriendsScreen user={user} onSelectP2P={() => setActiveTab('p2p')} />;
+    }
+
+    if (activeTab === 'p2p') {
+      return <P2PFlow user={user} onBack={() => setActiveTab('dashboard')} />;
     }
   };
 
@@ -248,6 +268,24 @@ export default function App() {
         {renderContent()}
       </div>
 
+      <AnimatePresence>
+        {showGlobalHub && (
+          <GlobalExpenseHub
+            user={user}
+            onClose={() => setShowGlobalHub(false)}
+            onSelectGroup={(group) => {
+              setSelectedTrip(group);
+              setActiveTab('add');
+              setShowGlobalHub(false);
+            }}
+            onSelectP2P={() => {
+              setActiveTab('p2p');
+              setShowGlobalHub(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Global Bottom Navigation */}
       <nav className="shrink-0 mt-auto bg-white/90 dark:bg-black/90 backdrop-blur-lg border-t border-gray-200/50 dark:border-gray-800/50 px-6 pt-3 pb-[max(env(safe-area-inset-bottom),1.5rem)] flex justify-between items-center w-full z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)] relative">
         <button
@@ -261,13 +299,13 @@ export default function App() {
         </button>
 
         <button
-          onClick={() => setActiveTab('add')}
+          onClick={() => setShowGlobalHub(true)}
           className="flex-1 flex justify-center -mt-10"
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(79,70,229,0.4)] dark:shadow-[0_8px_30px_rgba(99,102,241,0.3)] transition-colors border-[4px] border-white dark:border-black ${activeTab === 'add' ? 'bg-indigo-700 dark:bg-indigo-500' : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500'}`}
+            className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(79,70,229,0.4)] dark:shadow-[0_8px_30px_rgba(99,102,241,0.3)] transition-colors border-[4px] border-white dark:border-black ${showGlobalHub ? 'bg-indigo-700 dark:bg-indigo-500' : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500'}`}
           >
             <PlusCircle className="w-7 h-7 text-white" />
           </motion.div>
@@ -301,18 +339,15 @@ export default function App() {
 function LoginScreen() {
   const handleLogin = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      await setDoc(doc(db, 'users', user.uid), {
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        lastSeen: serverTimestamp()
-      }, { merge: true });
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
     } catch (error) {
       console.error('Error signing in', error);
-      alert('Failed to sign in. Please check your Firebase configuration.');
+      alert('Failed to sign in. Please check your Supabase configuration.');
     }
   };
 
@@ -368,30 +403,441 @@ function LoginScreen() {
   );
 }
 
+function P2PFlow({ user, onBack }: { user: User, onBack: () => void }) {
+  const [step, setStep] = useState<'select_friend' | 'amount'>('select_friend');
+  const [friends, setFriends] = useState<any[]>([]);
+  const [selectedFriend, setSelectedFriend] = useState<any | null>(null);
+
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    const fetchFriends = async () => {
+      // Find all groups the user is in, and then get all members of those groups
+      const { data } = await supabase
+        .from('group_members')
+        .select(`
+          group_id,
+          groups (
+            group_members (
+              user_id,
+              profiles ( id, name, avatar_url, email )
+            )
+          )
+        `)
+        .eq('user_id', user.uid);
+
+      if (data && isSubscribed) {
+        const uniqueFriends = new Map();
+        data.forEach((gm: any) => {
+          gm.groups?.group_members?.forEach((member: any) => {
+            if (member.user_id !== user.uid && member.profiles) {
+              if (!uniqueFriends.has(member.user_id)) {
+                uniqueFriends.set(member.user_id, member.profiles);
+              }
+            }
+          });
+        });
+        setFriends(Array.from(uniqueFriends.values()));
+      }
+    };
+    fetchFriends();
+    return () => { isSubscribed = false; };
+  }, [user.uid]);
+
+  const handleTransaction = async (type: 'PAY' | 'REQUEST') => {
+    if (!selectedFriend || !amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      alert("Please enter a valid amount.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      // In our schema: transactions (id, sender_id, receiver_id, amount, currency, description, status)
+      const sender_id = type === 'PAY' ? user.uid : selectedFriend.id;
+      const receiver_id = type === 'PAY' ? selectedFriend.id : user.uid;
+      // If payment is direct, we can mark "status" = 'completed' or 'pending' if it's a request.
+      const status = type === 'PAY' ? 'completed' : 'pending';
+
+      const { error } = await supabase
+        .from('transactions')
+        .insert({
+          sender_id,
+          receiver_id,
+          amount: Number(amount),
+          currency: 'USD',
+          description: note || (type === 'PAY' ? 'Direct Payment' : 'Payment Request'),
+          status
+        });
+
+      if (error) throw error;
+
+      alert(`Successfully ${type === 'PAY' ? 'paid' : 'requested'} ${selectedFriend.name || 'friend'}.`);
+      onBack();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to process transaction.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black relative pt-[max(env(safe-area-inset-top),2.5rem)]">
+      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-4 shadow-sm z-10 sticky top-0 transition-colors border-b border-gray-200/50 dark:border-gray-800/50">
+        <div className="flex items-center gap-4">
+          <button onClick={() => step === 'amount' ? setStep('select_friend') : onBack()} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-indigo-600 bg-gray-100/80 hover:bg-indigo-50 dark:bg-zinc-800 dark:hover:bg-indigo-900/40 rounded-full cursor-pointer transition-colors shadow-sm">
+            <ChevronLeft className="w-5 h-5 -ml-0.5" />
+          </button>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            {step === 'select_friend' ? 'Who?' : `To ${selectedFriend?.name}`}
+          </h1>
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-6">
+        {step === 'select_friend' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Select a Friend</h2>
+
+            {friends.length === 0 ? (
+              <div className="text-center py-10">
+                <Users className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-4" />
+                <p className="text-gray-500 font-medium">No friends found.</p>
+                <p className="text-sm text-gray-400 mt-1">Join a group to find people to pay.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {friends.map(friend => (
+                  <button
+                    key={friend.id}
+                    onClick={() => { setSelectedFriend(friend); setStep('amount'); }}
+                    className="w-full bg-white dark:bg-zinc-900 border border-gray-100 dark:border-gray-800 p-4 rounded-2xl flex items-center gap-4 hover:shadow-md transition-shadow text-left"
+                  >
+                    {friend.avatar_url ? (
+                      <img src={friend.avatar_url} alt={friend.name} className="w-12 h-12 rounded-full shadow-sm" />
+                    ) : (
+                      <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-lg">
+                        {friend.name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="font-bold text-gray-900 dark:text-white text-lg leading-tight">{friend.name}</p>
+                      <p className="text-sm text-gray-500">{friend.email}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 'amount' && selectedFriend && (
+          <div className="max-w-md mx-auto space-y-8 animate-in slide-in-from-right-8 duration-300">
+            <div className="flex flex-col items-center mt-6 mb-10">
+              {selectedFriend.avatar_url ? (
+                <img src={selectedFriend.avatar_url} alt={selectedFriend.name} className="w-24 h-24 rounded-full shadow-lg border-4 border-white dark:border-black mb-4" />
+              ) : (
+                <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-4xl shadow-lg border-4 border-white dark:border-black mb-4">
+                  {selectedFriend.name?.[0]?.toUpperCase() || '?'}
+                </div>
+              )}
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedFriend.name}</h2>
+            </div>
+
+            <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2 mb-6 border-b-2 border-indigo-500/30 focus-within:border-indigo-500 transition-colors pb-2">
+                <span className="text-4xl font-light text-gray-400">$</span>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full text-5xl font-black bg-transparent text-gray-900 dark:text-white focus:outline-none placeholder-gray-300 dark:placeholder-gray-700"
+                  autoFocus
+                />
+              </div>
+
+              <input
+                type="text"
+                placeholder="What's this for?"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <button
+                disabled={isSubmitting}
+                onClick={() => handleTransaction('REQUEST')}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-900 dark:text-white py-4 rounded-2xl font-bold shadow-sm transition-colors disabled:opacity-50"
+              >
+                Request
+              </button>
+              <button
+                disabled={isSubmitting}
+                onClick={() => handleTransaction('PAY')}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-500/30 transition-colors disabled:opacity-50"
+              >
+                Pay
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GlobalExpenseHub({ user, onClose, onSelectGroup, onSelectP2P }: { user: User, onClose: () => void, onSelectGroup: (trip: Trip) => void, onSelectP2P: () => void }) {
+  const [trips, setTrips] = useState<Trip[]>([]);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    const fetchTrips = async () => {
+      const { data } = await supabase
+        .from('group_members')
+        .select(`
+          group_id,
+          groups (
+            id, name, created_by, notes, date_range, created_at,
+            group_members ( user_id, profiles ( name ) )
+          )
+        `)
+        .eq('user_id', user.uid);
+
+      if (data && isSubscribed) {
+        const tripsData = data.map((gm: any) => {
+          const g = gm.groups;
+          const members = g.group_members.map((m: any) => m.user_id);
+          const memberNames: Record<string, string> = {};
+          g.group_members.forEach((m: any) => { memberNames[m.user_id] = m.profiles?.name || 'Unknown'; });
+          return {
+            id: g.id, name: g.name, createdBy: g.created_by, notes: g.notes,
+            dateRange: g.date_range, createdAt: g.created_at, members, memberNames
+          } as Trip;
+        });
+        tripsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setTrips(tripsData);
+      }
+    };
+    fetchTrips();
+    return () => { isSubscribed = false; };
+  }, [user.uid]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-white dark:bg-zinc-900 w-full rounded-t-[2rem] p-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] shadow-2xl relative animate-in slide-in-from-bottom-[100%] duration-300">
+        <button onClick={onClose} className="absolute top-4 right-4 w-10 h-10 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors rounded-full flex items-center justify-center text-gray-500">
+          <X className="w-5 h-5" />
+        </button>
+
+        <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 pr-12">Who is this for?</h2>
+        <p className="text-gray-500 mb-6 font-medium text-sm border-b border-gray-100 dark:border-gray-800 pb-4">
+          Record a payment or add a new expense.
+        </p>
+
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pb-4">
+          {/* P2P Flow */}
+          <button
+            onClick={onSelectP2P}
+            className="w-full flex items-center p-4 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-2xl gap-4 group hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all text-left"
+          >
+            <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform shadow-sm border border-indigo-200/50 dark:border-indigo-700/50">
+              <UserCircle className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-lg text-indigo-900 dark:text-indigo-100 leading-none mb-1">Direct Payment / Request</h3>
+              <p className="text-sm font-medium text-indigo-600/80 dark:text-indigo-400">Send money or request a split with a friend</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-indigo-400" />
+          </button>
+
+          <div className="py-2 flex items-center gap-4">
+            <div className="h-px bg-gray-100 dark:bg-gray-800 flex-1"></div>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Or choose a group</p>
+            <div className="h-px bg-gray-100 dark:bg-gray-800 flex-1"></div>
+          </div>
+
+          {/* Group Options */}
+          {trips.map(trip => (
+            <button
+              key={trip.id}
+              onClick={() => onSelectGroup(trip)}
+              className="w-full flex items-center p-4 bg-white dark:bg-black border border-gray-100 dark:border-gray-800 rounded-2xl gap-4 group hover:border-indigo-200 dark:hover:border-indigo-800 transition-all text-left shadow-sm hover:shadow-md"
+            >
+              <div className="w-12 h-12 rounded-full bg-gray-50 dark:bg-zinc-800 flex items-center justify-center text-gray-500 dark:text-gray-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors shadow-sm border border-gray-200/50 dark:border-gray-700/50">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white leading-none mb-1 truncate">{trip.name}</h3>
+                <p className="text-sm font-medium text-gray-500 truncate">{trip.members.length} members</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity -ml-4 group-hover:ml-0" />
+            </button>
+          ))}
+
+          {trips.length === 0 && (
+            <div className="text-center py-6 px-4">
+              <div className="w-16 h-16 bg-gray-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
+                <Palmtree className="w-8 h-8" />
+              </div>
+              <p className="text-gray-900 dark:text-white font-bold mb-1">No groups yet</p>
+              <p className="text-gray-500 text-sm">Create a group from the dashboard first.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GlobalFriendsScreen({ user, onSelectP2P }: { user: User, onSelectP2P: () => void }) {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isSubscribed = true;
+    const fetchTransactions = async () => {
+      // Supabase OR query for sender_id or receiver_id
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+          id, amount, currency, description, status, created_at,
+          sender_id, receiver_id,
+          sender:profiles!sender_id(id, name, avatar_url),
+          receiver:profiles!receiver_id(id, name, avatar_url)
+        `)
+        .or(`sender_id.eq.${user.uid},receiver_id.eq.${user.uid}`)
+        .order('created_at', { ascending: false });
+
+      if (data && isSubscribed) {
+        setTransactions(data);
+      }
+      if (isSubscribed) setIsLoading(false);
+    };
+    fetchTransactions();
+    return () => { isSubscribed = false; };
+  }, [user.uid]);
+
+  const handleUpdateTransaction = async (id: string, newStatus: 'completed' | 'declined') => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ status: newStatus })
+        .eq('id', id);
+      if (error) throw error;
+      setTransactions(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    } catch (err) {
+      console.error('Failed to update transaction status', err);
+      alert('Failed to update request.');
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gray-50/50 dark:bg-black relative">
+      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-5 pt-[max(env(safe-area-inset-top),2.5rem)] border-b border-gray-200/50 dark:border-gray-800/50 z-10 flex justify-between items-center sticky top-0">
+        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Friends</h1>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-32">
+        {/* Actions */}
+        <div className="flex gap-4">
+          <button onClick={onSelectP2P} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 transition-colors">
+            <Plus className="w-5 h-5" /> Send / Request
+          </button>
+        </div>
+
+        {/* Activity Feed */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Recent Activity</h2>
+          {isLoading ? (
+            <p className="text-gray-500 text-sm">Loading...</p>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-10 bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-gray-800">
+              <Users className="w-10 h-10 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
+              <p className="text-gray-900 dark:text-white font-bold mb-1">No activity yet</p>
+              <p className="text-gray-500 text-sm">Your P2P transactions will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {transactions.map(t => {
+                const amISender = t.sender_id === user.uid;
+                const friend = amISender ? t.receiver : t.sender;
+                const isPayment = t.status === 'completed';
+
+                return (
+                  <div key={t.id} className="bg-white dark:bg-zinc-900/80 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex items-center gap-4 hover:shadow-md transition-shadow">
+                    {friend?.avatar_url ? (
+                      <img src={friend.avatar_url} alt={friend.name} className="w-12 h-12 rounded-full" />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center text-gray-500 font-bold">
+                        {friend?.name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 dark:text-white text-base leading-tight truncate">
+                        {amISender ? 'You' : friend?.name} {isPayment ? 'paid' : 'requested'} {amISender ? friend?.name : 'you'}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{t.description}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className={`font-black text-lg ${amISender && isPayment ? 'text-gray-900 dark:text-white' : (isPayment ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500 dark:text-amber-400')}`}>
+                        {amISender && isPayment ? '-' : '+'}${Number(t.amount).toFixed(2)}
+                      </div>
+                      {t.status === 'pending' && <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-500 mt-1">Pending</p>}
+                      {t.status === 'declined' && <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-rose-500 mt-1">Declined</p>}
+                    </div>
+                    {!amISender && t.status === 'pending' && (
+                      <div className="w-full flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 col-span-full">
+                        <button onClick={() => handleUpdateTransaction(t.id, 'declined')} className="flex-1 py-2 rounded-xl text-sm font-bold text-gray-500 dark:text-gray-400 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors">Decline</button>
+                        <button onClick={() => handleUpdateTransaction(t.id, 'completed')} className="flex-1 py-2 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-500/30 transition-colors">Accept & Pay</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 // --- Trip Card Component ---
 function TripCard({ trip, user, onClick }: { trip: Trip, user: User, onClick: () => void }) {
   const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
-    // We only need a lightweight listener on expenses to calculate the user's balance
-    const q = query(collection(db, 'trips', trip.id, 'expenses'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      let myBalance = 0;
-      snapshot.forEach((doc) => {
-        const exp = doc.data() as Expense;
-        // If user paid, they are owed money (+ balance)
-        if (exp.payer === user.uid) {
-          myBalance += exp.amount;
-        }
-        // If user is part of the split, they owe money (- balance)
-        if (exp.splits && exp.splits[user.uid] !== undefined) {
-          myBalance -= exp.splits[user.uid];
-        }
-      });
-      setBalance(myBalance);
-    });
+    let isSubscribed = true;
+    const fetchBalance = async () => {
+      const { data, error } = await supabase
+        .from('group_expenses')
+        .select('amount, payer_id, splits')
+        .eq('group_id', trip.id);
 
-    return () => unsubscribe();
+      if (error) {
+        console.error('Error fetching expenses', error);
+        return;
+      }
+
+      if (data && isSubscribed) {
+        let myBalance = 0;
+        data.forEach((exp: any) => {
+          if (exp.payer_id === user.uid) myBalance += Number(exp.amount);
+          if (exp.splits && exp.splits[user.uid] !== undefined) {
+            myBalance -= Number(exp.splits[user.uid]);
+          }
+        });
+        setBalance(myBalance);
+      }
+    };
+
+    fetchBalance();
+    return () => { isSubscribed = false; };
   }, [trip.id, user.uid]);
 
   return (
@@ -438,63 +884,131 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
   const [joinTripId, setJoinTripId] = useState('');
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'trips'),
-      where('members', 'array-contains', user.uid)
-    );
+    let isSubscribed = true;
+    const fetchTrips = async () => {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select(`
+          group_id,
+          groups (
+            id, name, created_by, notes, date_range, created_at,
+            group_members (
+              user_id,
+              profiles ( name )
+            )
+          )
+        `)
+        .eq('user_id', user.uid);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tripsData: Trip[] = [];
-      snapshot.forEach((doc) => {
-        tripsData.push({ id: doc.id, ...doc.data() } as Trip);
-      });
-      // Sort client-side to avoid needing a composite index initially
-      tripsData.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis());
-      setTrips(tripsData);
-    });
+      if (error) {
+        console.error('Error fetching trips', error);
+        return;
+      }
 
-    return () => unsubscribe();
+      if (data && isSubscribed) {
+        const tripsData = data.map((gm: any) => {
+          const g = gm.groups;
+          const members = g.group_members.map((m: any) => m.user_id);
+          const memberNames: Record<string, string> = {};
+          g.group_members.forEach((m: any) => {
+            memberNames[m.user_id] = m.profiles?.name || 'Unknown';
+          });
+          return {
+            id: g.id,
+            name: g.name,
+            createdBy: g.created_by,
+            notes: g.notes,
+            dateRange: g.date_range,
+            createdAt: g.created_at,
+            members,
+            memberNames
+          } as Trip;
+        });
+
+        tripsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setTrips(tripsData);
+      }
+    };
+
+    fetchTrips();
+    return () => { isSubscribed = false; };
   }, [user.uid]);
 
   const handleCreateTrip = async () => {
     if (!newTripName.trim()) return;
     try {
-      await addDoc(collection(db, 'trips'), {
-        name: newTripName,
-        createdBy: user.uid,
-        members: [user.uid],
-        memberNames: {
-          [user.uid]: user.displayName || 'Unknown'
-        },
-        createdAt: serverTimestamp(),
-      });
+      const { data: group, error: groupError } = await supabase
+        .from('groups')
+        .insert({
+          name: newTripName,
+          created_by: user.uid,
+        })
+        .select()
+        .single();
+
+      if (groupError) throw groupError;
+
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: group.id,
+          user_id: user.uid
+        });
+
+      if (memberError) throw memberError;
+
       setNewTripName('');
       setShowCreate(false);
+      // Let user view the new trip immediately, or wait for refresh
+      onSelectTrip({
+        id: group.id,
+        name: group.name,
+        createdBy: user.uid,
+        members: [user.uid],
+        memberNames: { [user.uid]: user.displayName || 'Unknown' },
+        createdAt: group.created_at
+      } as Trip);
     } catch (error) {
-      console.error('Error creating trip', error);
-      alert('Failed to create trip.');
+      console.error('Error creating group', error);
+      alert('Failed to create group.');
     }
   };
 
   const handleJoinTrip = async () => {
     if (!joinTripId.trim()) return;
     try {
-      const tripRef = doc(db, 'trips', joinTripId.trim());
-      const tripSnap = await getDoc(tripRef);
+      // Check if group exists
+      const { data: group, error: groupError } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('id', joinTripId.trim())
+        .single();
 
-      if (tripSnap.exists()) {
-        await updateDoc(tripRef, {
-          members: arrayUnion(user.uid),
-          [`memberNames.${user.uid}`]: user.displayName || 'Unknown'
+      if (groupError || !group) {
+        alert('Group not found!');
+        return;
+      }
+
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: group.id,
+          user_id: user.uid
         });
+
+      if (memberError) {
+        if (memberError.code === '23505') {
+          alert('You are already a member of this group.');
+        } else {
+          throw memberError;
+        }
+      } else {
         setJoinTripId('');
         setShowJoin(false);
-      } else {
-        alert('Trip not found. Please check the ID.');
       }
     } catch (error) {
-      console.error('Error joining trip', error);
-      alert('Failed to join trip.');
+      console.error('Error joining group', error);
+      alert('Failed to join group. Please ensure the ID is correct.');
     }
   };
 
@@ -502,7 +1016,7 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
     <div className="flex flex-col h-full bg-gray-50/50 dark:bg-black relative">
       <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-5 pt-[max(env(safe-area-inset-top),2.5rem)] border-b border-gray-200/50 dark:border-gray-800/50 z-10 flex justify-between items-center sticky top-0">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">My Trips</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">My Groups</h1>
         </div>
         <div className="flex items-center gap-3">
           {user.photoURL ? (
@@ -526,9 +1040,9 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
               <div className="absolute inset-0 bg-indigo-400/20 dark:bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
               <Palmtree className="w-32 h-32 text-indigo-200 dark:text-indigo-900/50 drop-shadow-xl" />
             </div>
-            <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-3 tracking-tight">No trips yet</h3>
+            <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-3 tracking-tight">No groups yet</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-[260px] mx-auto text-base font-medium leading-relaxed">
-              Create a new trip or join an existing one to start splitting the costs.
+              Create a new group or join an existing one to start splitting the costs.
             </p>
           </motion.div>
         ) : (
@@ -556,7 +1070,7 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
           className="flex-[1.5] bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-[0_8px_30px_rgba(79,70,229,0.3)] dark:shadow-[0_8px_30px_rgba(99,102,241,0.2)] transition-colors overflow-hidden relative"
         >
           <div className="absolute inset-0 bg-white/20 hover:bg-transparent transition-colors" />
-          <Plus className="w-6 h-6 relative z-10" /> <span className="relative z-10">Create Trip</span>
+          <Plus className="w-6 h-6 relative z-10" /> <span className="relative z-10">Create Group</span>
         </motion.button>
       </div>
 
@@ -572,10 +1086,10 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
               className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16" />
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 relative z-10">Create New Trip</h2>
+              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 relative z-10">Create New Group</h2>
               <input
                 type="text"
-                placeholder="Trip Name (e.g. Bali 2024)"
+                placeholder="Group Name (e.g. Bali 2024)"
                 className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-5 py-4 mb-8 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium relative z-10"
                 value={newTripName}
                 onChange={(e) => setNewTripName(e.target.value)}
@@ -599,10 +1113,10 @@ function HomeScreen({ user, onSelectTrip }: { user: User, onSelectTrip: (trip: T
               className="bg-white dark:bg-zinc-900 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 dark:bg-indigo-900/10 rounded-full -mr-16 -mt-16" />
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 relative z-10">Join a Trip</h2>
+              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-6 relative z-10">Join a Group</h2>
               <input
                 type="text"
-                placeholder="Paste Trip ID here"
+                placeholder="Paste Group ID here"
                 className="w-full bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-800 text-gray-900 dark:text-white rounded-2xl px-5 py-4 mb-8 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm relative z-10"
                 value={joinTripId}
                 onChange={(e) => setJoinTripId(e.target.value)}
@@ -627,12 +1141,13 @@ function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
   const handleSaveDates = async () => {
     setIsSavingDates(true);
     try {
-      await updateDoc(doc(db, 'trips', trip.id), {
-        dateRange: dateRangeValue.trim()
-      });
+      await supabase
+        .from('groups')
+        .update({ date_range: dateRangeValue.trim() })
+        .eq('id', trip.id);
     } catch (err) {
       console.error("Failed to save date range", err);
-      alert("Failed to update trip dates.");
+      alert("Failed to update group dates.");
     } finally {
       setIsSavingDates(false);
     }
@@ -640,18 +1155,16 @@ function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
 
   const handleLeaveGroup = async () => {
     if (trip.createdBy === user.uid) {
-      alert("As the creator, you cannot leave the trip. You must delete it instead.");
+      alert("As the creator, you cannot leave the group. You must delete it instead.");
       return;
     }
-    if (confirm("Are you sure you want to leave this trip? You will no longer see its expenses.")) {
+    if (confirm("Are you sure you want to leave this group? You will no longer see its expenses.")) {
       try {
-        const newMembers = trip.members.filter((id: string) => id !== user.uid);
-        const newMemberNames = { ...trip.memberNames };
-        delete newMemberNames[user.uid];
-        await updateDoc(doc(db, 'trips', trip.id), {
-          members: newMembers,
-          memberNames: newMemberNames
-        });
+        await supabase
+          .from('group_members')
+          .delete()
+          .eq('group_id', trip.id)
+          .eq('user_id', user.uid);
         onBack();
       } catch (err) {
         console.error("Error leaving group:", err);
@@ -662,10 +1175,10 @@ function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
 
   return (
     <div className="p-6">
-      <h3 className="font-bold text-gray-900 dark:text-white mb-6 text-xl">Trip Settings</h3>
+      <h3 className="font-bold text-gray-900 dark:text-white mb-6 text-xl">Group Settings</h3>
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden mb-6">
         <div className="p-4 border-b border-gray-50 dark:border-gray-800">
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Trip Dates</label>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Group Dates</label>
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -709,7 +1222,7 @@ function TripSettingsTab({ trip, user, onBack, handleShare }: any) {
               </div>
               <div className="text-left">
                 <p className="font-medium text-rose-600 dark:text-rose-400">Leave Group</p>
-                <p className="text-xs text-rose-500/80 dark:text-rose-400/80">Remove yourself from this trip</p>
+                <p className="text-xs text-rose-500/80 dark:text-rose-400/80">Remove yourself from this group</p>
               </div>
             </div>
           </button>
@@ -750,20 +1263,38 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
   // Listen to expenses for this trip
   useEffect(() => {
-    const q = query(
-      collection(db, 'trips', trip.id, 'expenses'),
-      orderBy('timestamp', 'desc')
-    );
+    let isSubscribed = true;
+    const fetchExpenses = async () => {
+      const { data, error } = await supabase
+        .from('group_expenses')
+        .select('*')
+        .eq('group_id', trip.id)
+        .order('created_at', { ascending: false });
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const exps: Expense[] = [];
-      snapshot.forEach((doc) => {
-        exps.push({ id: doc.id, ...doc.data() } as Expense);
-      });
-      setExpenses(exps);
-    });
+      if (error) {
+        console.error('Error fetching expenses', error);
+        return;
+      }
 
-    return () => unsubscribe();
+      if (data && isSubscribed) {
+        const exps = data.map((d: any) => ({
+          id: d.id,
+          amount: Number(d.amount),
+          originalCurrency: d.original_currency,
+          originalAmount: Number(d.original_amount),
+          payer: d.payer_id,
+          category: d.category,
+          description: d.description,
+          splits: d.splits,
+          createdBy: d.created_by,
+          timestamp: d.created_at
+        } as Expense));
+        setExpenses(exps);
+      }
+    };
+
+    fetchExpenses();
+    return () => { isSubscribed = false; };
   }, [trip.id]);
 
   const executeSettleUp = async () => {
@@ -774,8 +1305,9 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
       alert("Please enter a valid amount.");
       return;
     }
-    if (Math.round(amountVal * 100) > Math.round(settleUpDebt.amount * 100)) {
-      alert("You cannot pay more than you owe.");
+    // Allow up to 2 cents overpayment to account for fractional splits rounding in the UI
+    if (amountVal > settleUpDebt.amount + 0.02) {
+      alert("You cannot pay more than you owe (plus a small margin for fractional rounding).");
       return;
     }
 
@@ -783,44 +1315,38 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
     // 1. Record the Settlement Expense
     const expensePayload = {
+      group_id: trip.id,
       amount: amountVal,
-      originalCurrency: 'USD',
-      originalAmount: amountVal,
+      original_currency: 'USD',
+      original_amount: amountVal,
       description: 'Settlement Payment',
       category: 'settlement',
-      payer: user.uid,
+      payer_id: user.uid,
       splits: { [payeeId]: amountVal },
-      timestamp: serverTimestamp(),
-      createdBy: user.uid
+      created_by: user.uid
     };
 
     try {
-      await addDoc(collection(db, 'trips', trip.id, 'expenses'), expensePayload);
+      const { data, error } = await supabase.from('group_expenses').insert(expensePayload).select().single();
+      if (error) throw error;
 
-      // 2. Generate Notification for Payee
-      const remainingBalance = settleUpDebt.amount - amountVal;
-      let message = "";
-      if (remainingBalance <= 0.01) {
-        message = `${user.displayName || 'Someone'} has fully settled their balance with you! 💸🎉`;
-      } else {
-        message = `${user.displayName || 'Someone'} sent you $${amountVal.toFixed(2)}. They still owe you $${remainingBalance.toFixed(2)}.`;
+      if (data) {
+        setExpenses(prev => [{
+          id: data.id,
+          amount: Number(data.amount),
+          originalCurrency: data.original_currency,
+          originalAmount: Number(data.original_amount),
+          payer: data.payer_id,
+          category: data.category,
+          description: data.description,
+          splits: data.splits,
+          createdBy: data.created_by,
+          timestamp: data.created_at
+        } as Expense, ...prev]);
       }
-
-      await addDoc(collection(db, 'users', payeeId, 'notifications'), {
-        type: 'settlement',
-        tripId: trip.id,
-        payerId: user.uid,
-        payerName: user.displayName || 'Someone',
-        amount: amountVal,
-        remainingBalance: remainingBalance,
-        message: message,
-        timestamp: serverTimestamp(),
-        read: false
-      });
 
       setSettleUpDebt(null);
       setSettleAmount('');
-      // Note: The global snapshot listener for expenses will automatically refresh the balances!
     } catch (e) {
       console.error("Failed to settle up", e);
       alert("Failed to process payment.");
@@ -963,25 +1489,26 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `Join my trip: ${trip.name}`,
-        text: 'Join my trip on Fair Square to split expenses!',
+        title: `Join my group: ${trip.name}`,
+        text: 'Join my group on Fair Square to split expenses!',
         url: `${window.location.origin}?join=${trip.id}`
       });
     } else {
       navigator.clipboard.writeText(trip.id);
-      alert('Trip ID copied to clipboard!');
+      alert('Group ID copied to clipboard!');
     }
   };
 
   const saveUpdatedNotes = async () => {
     try {
-      await updateDoc(doc(db, 'trips', trip.id), {
-        notes: notesValue.trim()
-      });
+      await supabase
+        .from('groups')
+        .update({ notes: notesValue.trim() })
+        .eq('id', trip.id);
       setIsEditingNotes(false);
     } catch (err) {
       console.error('Failed to update notes', err);
-      alert('Failed to update trip notes');
+      alert('Failed to update group notes');
     }
   };
 
@@ -991,14 +1518,14 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
       return;
     }
     try {
-      await updateDoc(doc(db, 'trips', trip.id), {
-        name: editNameValue.trim()
-      });
-      // The parent component listens to snapshot so it will update automatically, or we just optimistically close
+      await supabase
+        .from('groups')
+        .update({ name: editNameValue.trim() })
+        .eq('id', trip.id);
       setIsEditingName(false);
     } catch (err) {
       console.error('Failed to update name', err);
-      alert('Failed to update trip name');
+      alert('Failed to update group name');
     }
   };
 
@@ -1501,11 +2028,21 @@ function FriendsTab({ trip, user, balances, debts, handleShare, onPay }: any) {
   useEffect(() => {
     async function loadProfiles() {
       try {
-        const fetchPromises = trip.members.map((id: string) => getDoc(doc(db, 'users', id)));
-        const snapDocs = await Promise.all(fetchPromises);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', trip.members);
+
+        if (error) throw error;
+
         const newProfiles: Record<string, any> = {};
-        snapDocs.forEach(d => {
-          if (d.exists()) newProfiles[d.id] = d.data();
+        data?.forEach((d: any) => {
+          newProfiles[d.id] = {
+            uid: d.id,
+            displayName: d.name,
+            photoURL: d.avatar_url,
+            email: d.email
+          };
         });
         setProfiles(newProfiles);
       } catch (e) {
@@ -1660,7 +2197,7 @@ function SettingsScreen({ user, isDarkMode, toggleTheme }: { user: User, isDarkM
             </div>
           </div>
           <div className="p-2">
-            <button onClick={() => signOut(auth)} className="w-full text-left px-4 py-3 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl font-medium flex items-center gap-3 transition-colors">
+            <button onClick={() => supabase.auth.signOut()} className="w-full text-left px-4 py-3 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl font-medium flex items-center gap-3 transition-colors">
               <LogOut className="w-5 h-5" /> Sign Out
             </button>
           </div>
@@ -1706,6 +2243,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
   const [showCameraOptions, setShowCameraOptions] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Custom splits setup based on initial data
   const initialInvolved = initialExpense
@@ -1755,6 +2293,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       });
 
       // 3. Send to API Endpoint
+      abortControllerRef.current = new AbortController();
       const response = await fetch('/api/process-receipt', {
         method: 'POST',
         headers: {
@@ -1764,6 +2303,7 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
           imageBase64: base64data,
           mimeType: compressedFile.type,
         }),
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
@@ -1788,7 +2328,11 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
 
       setScannedReceiptData(extractedData);
 
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log("Scanner aborted by user.");
+        return;
+      }
       console.error("Error scanning receipt:", error);
       alert("Failed to process receipt image.");
     } finally {
@@ -1855,21 +2399,26 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
 
     try {
       const payload = {
+        group_id: trip.id,
         amount: numAmountUSD,
-        originalCurrency: currency,
-        originalAmount: numAmountLocal,
+        original_currency: currency,
+        original_amount: numAmountLocal,
         description,
         category,
-        payer,
+        payer_id: payer,
         splits: splitsUSD,
-        timestamp: initialExpense ? initialExpense.timestamp : serverTimestamp(),
-        createdBy: initialExpense ? initialExpense.createdBy : user.uid
+        created_by: initialExpense ? initialExpense.createdBy : user.uid
       };
 
       if (initialExpense) {
-        await updateDoc(doc(db, 'trips', trip.id, 'expenses', initialExpense.id), payload);
+        await supabase
+          .from('group_expenses')
+          .update(payload)
+          .eq('id', initialExpense.id);
       } else {
-        await addDoc(collection(db, 'trips', trip.id, 'expenses'), payload);
+        await supabase
+          .from('group_expenses')
+          .insert(payload);
       }
       onAdded();
     } catch (error) {
@@ -1978,14 +2527,16 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
               {isScanning ? 'Extracting details using AI' : 'Ready to submit'}
             </p>
           </div>
-          {!isScanning && (
-            <button
-              onClick={() => setScanPreview(null)}
-              className="p-2 text-gray-400 hover:text-rose-500 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+          <button
+            onClick={() => {
+              if (abortControllerRef.current) abortControllerRef.current.abort();
+              setScanPreview(null);
+              setIsScanning(false);
+            }}
+            className="p-2 text-gray-400 hover:text-rose-500 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
       )}
 
