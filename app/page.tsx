@@ -391,7 +391,7 @@ function LoginScreen() {
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
-          onClick={handleLogin}
+          onClick={signInWithGoogle}
           className="w-full max-w-sm bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-4 px-6 rounded-2xl font-bold text-lg hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors flex items-center justify-center gap-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(255,255,255,0.12)]"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24">
