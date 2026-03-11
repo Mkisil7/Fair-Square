@@ -2296,26 +2296,22 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
         reader.onerror = reject;
       });
 
-      // 3. Send to API Endpoint
+      // 3. Send to Supabase Edge Function
       abortControllerRef.current = new AbortController();
-      const response = await fetch('/api/process-receipt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const response = await supabase.functions.invoke('process-receipt', {
+        body: {
           imageBase64: base64data,
           mimeType: compressedFile.type,
-        }),
-        signal: abortControllerRef.current.signal
+        },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to process receipt');
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to process receipt');
       }
 
-      const extractedData = await response.json();
+      const extractedData = response.data;
+
+      const extractedData = response.data;
       console.log('Parsed receipt data:', extractedData);
 
       if (extractedData.total) {
