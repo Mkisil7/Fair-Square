@@ -2310,8 +2310,6 @@ function ExpenseFormTab({ trip, user, initialExpense, onAdded }: { trip: Trip, u
       }
 
       const extractedData = response.data;
-
-      const extractedData = response.data;
       console.log('Parsed receipt data:', extractedData);
 
       if (extractedData.total) {
