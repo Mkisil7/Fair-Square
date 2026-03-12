@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   collection,
@@ -184,7 +186,33 @@ export default function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for deep link callbacks on native platforms (OAuth redirect)
+    let appUrlListener: any;
+    if (Capacitor.isNativePlatform()) {
+      appUrlListener = CapApp.addListener('appUrlOpen', async ({ url }: { url: string }) => {
+        // The URL will be like: com.fairsquare.app://login-callback#access_token=...&refresh_token=...
+        if (url.includes('login-callback')) {
+          const hashPart = url.split('#')[1];
+          if (hashPart) {
+            const params = new URLSearchParams(hashPart);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+
+            if (accessToken && refreshToken) {
+              await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+            }
+          }
+        }
+      });
+    }
+
+    return () => {
+      subscription.unsubscribe();
+      appUrlListener?.remove();
+    };
   }, []);
 
   if (loading) {
@@ -340,8 +368,12 @@ export default function App() {
 function LoginScreen() {
   const signInWithGoogle = async () => {
     try {
-      // Determine the redirect URL based on environment (Vercel sets x-forwarded-host via NEXT_PUBLIC_SITE_URL or we can use window.location.origin on the client)
-      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
+      // On native iOS/Android, redirect back to the app via custom URL scheme.
+      // On web, use the current origin so the browser stays on the same site.
+      const isNative = Capacitor.isNativePlatform();
+      const redirectUrl = isNative
+        ? 'com.fairsquare.app://login-callback'
+        : typeof window !== 'undefined' ? `${window.location.origin}/` : undefined;
 
       await supabase.auth.signInWithOAuth({
         provider: 'google',
