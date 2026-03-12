@@ -520,7 +520,7 @@ function P2PFlow({ user, onBack }: { user: User, onBack: () => void }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-black relative pt-[max(env(safe-area-inset-top),2.5rem)]">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-black relative">
       <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-4 shadow-sm z-10 sticky top-0 transition-colors border-b border-gray-200/50 dark:border-gray-800/50">
         <div className="flex items-center gap-4">
           <button onClick={() => step === 'amount' ? setStep('select_friend') : onBack()} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-indigo-600 bg-gray-100/80 hover:bg-indigo-50 dark:bg-zinc-800 dark:hover:bg-indigo-900/40 rounded-full cursor-pointer transition-colors shadow-sm">
@@ -1567,7 +1567,7 @@ function TripScreen({ user, trip, onBack, tab = 'dashboard', onFinishAdd }: { us
 
   return (
     <div className="flex flex-col h-full bg-gray-50/50 dark:bg-black relative">
-      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 sticky top-0 transition-colors border-b border-gray-200/50 dark:border-gray-800/50">
+      <header className="bg-white/80 dark:bg-black/80 backdrop-blur-xl px-6 py-3 shadow-sm z-10 sticky top-0 transition-colors border-b border-gray-200/50 dark:border-gray-800/50">
         <div className="flex justify-between items-center mb-6">
           <button onClick={onBack} className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-indigo-600 bg-gray-100/80 hover:bg-indigo-50 dark:bg-zinc-800 dark:hover:bg-indigo-900/40 rounded-full cursor-pointer transition-colors shadow-sm">
             <ChevronLeft className="w-5 h-5 -ml-0.5" />
@@ -2211,7 +2211,7 @@ function FriendsTab({ trip, user, balances, debts, handleShare, onPay }: any) {
 function SettingsScreen({ user, isDarkMode, toggleTheme }: { user: User, isDarkMode: boolean, toggleTheme: () => void }) {
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-black">
-      <header className="bg-white dark:bg-zinc-900 px-6 py-4 pt-[max(env(safe-area-inset-top),2.5rem)] shadow-sm z-10 transition-colors">
+      <header className="bg-white dark:bg-zinc-900 px-6 py-3 shadow-sm z-10 transition-colors">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
       </header>
 
