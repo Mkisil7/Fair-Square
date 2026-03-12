@@ -102,7 +102,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 const LogoBanner = () => (
-  <div className="flex items-center justify-center gap-1.5 py-3 w-full bg-white/70 dark:bg-black/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 z-40 sticky top-0 mt-safe-pt shadow-sm">
+  <div className="flex items-center justify-center gap-1.5 py-3 pt-[max(env(safe-area-inset-top),1.25rem)] w-full bg-white/70 dark:bg-black/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 z-40 sticky top-0 shadow-sm">
     <span className="font-extrabold tracking-tight text-gray-900 dark:text-white text-xl">Fair</span>
     <div className="w-6 h-6 border-[3px] border-indigo-600 dark:border-indigo-500 rounded-md flex items-center justify-center text-indigo-600 dark:text-indigo-500 font-black text-xs leading-none mb-0.5 shadow-sm">
       &amp;
